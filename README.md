@@ -1,5 +1,5 @@
 # Projet Demos - La Plateforme
-## Analyse en Language `**R**` des taux d'abstensions à la participation électorale de 2017 en France
+## Analyse en Language **`R`** des taux d'abstensions à la participation électorale de 2017 en France
 ## Membres du projet 
 - Xavier Trentin
 - Yann Sasse
