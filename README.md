@@ -4,6 +4,8 @@
 - Xavier Trentin
 - Yann Sasse
 - Julien Ract-Mugnerot
+- Amina Sadio
+  
 
 ## Etapes du projets
 
