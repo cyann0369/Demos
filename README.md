@@ -63,10 +63,13 @@
 - ajouter valeur non significative aux vars compositionelles
 
 - Partie 6 du ReadMe vérifier le scaler qu'on utilise
+- 
 
 ## Notes pour l'équipe
 
 - utiliser Stargazer pour les tableaux
 
 - Enoncé: "Les différents scripts et notebooks R propre et commenté(introduction, conclusion, etc)" `**Markdown nécessaire dans les notebooks**`
+
+- PARTIE 5 vérifier l'intérêt de la démarche: **`PCA`** sur les variables résultants de la transformation Logratio
 
