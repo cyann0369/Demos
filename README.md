@@ -43,8 +43,6 @@
    - Récolte de nouvelles données propres aux abstentionistes, âge, profession, condition de vie et niveau d'éducation actuel ...
    - Sondages d'envergure pour complémenter les données actuelles
   
-
-
 ## Contenu IMPLEMENTE UNE FOIS LA STRUCTURE VALIDE PAR L EQUIPE
 
 ### Etape 1
@@ -58,11 +56,21 @@
 ### Etape 9
 
 ## References
+- R Basics
+    - `https://bookdown.org/evraloui/lbira2110/`
+    - `https://dplyr.tidyverse.org/articles/dplyr.html`
+- Normalize
+    - `https://www.digitalocean.com/community/tutorials/normalize-data-in-r`
 - Logration Transformations:
     - `https://www.geo.fu-berlin.de/en/v/soga-r/Advances-statistics/Feature-scales/Logratio_Transformations/index.html`
+    -  `https://www.rdocumentation.org/packages/compositions/versions/2.0-8`
+    -  Isometric Logarithm Transformation: Hardy Master Thesis
 - PCA
     - `https://www.datacamp.com/tutorial/pca-analysis-r`
     - `https://amupod.univ-amu.fr/video/2827-inasset-2019-pca-logratio-transformation/`
+ 
+- Linear Regression
+    - `https://www.youtube.com/watch?v=6zjkJ2A5Cc8`
 
 ## To do list 
 
@@ -71,7 +79,7 @@
 - ajouter valeur non significative aux vars compositionelles
 
 - Partie 6 du ReadMe vérifier le scaler qu'on utilise
-- 
+  
 
 ## Notes pour l'équipe
 
