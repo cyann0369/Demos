@@ -1,3 +1,10 @@
+<table style="text-align:center"><caption><strong>Descriptive statistics</strong></caption>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr><tr><td style="text-align:left">Statistic</td><td>N</td><td>Mean</td><td>St. Dev.</td><td>Min</td><td>Max</td></tr>
+<tr><td colspan="6" style="border-bottom: 1px solid black"></td></tr></table>
+
+
+
+
 # Projet Demos - La Plateforme
 ## Analyse en Language **`R`** des taux d'abstensions à la participation électorale de 2017 en France
 ## Membres du projet 
