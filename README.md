@@ -59,10 +59,10 @@
 
 ## References
 - Logration Transformations:
-    - https://www.geo.fu-berlin.de/en/v/soga-r/Advances-statistics/Feature-scales/Logratio_Transformations/index.html
+    - `https://www.geo.fu-berlin.de/en/v/soga-r/Advances-statistics/Feature-scales/Logratio_Transformations/index.html`
 - PCA
-    - https://www.datacamp.com/tutorial/pca-analysis-r
-    - https://amupod.univ-amu.fr/video/2827-inasset-2019-pca-logratio-transformation/
+    - `https://www.datacamp.com/tutorial/pca-analysis-r`
+    - `https://amupod.univ-amu.fr/video/2827-inasset-2019-pca-logratio-transformation/`
 
 ## To do list 
 
