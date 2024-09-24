@@ -20,7 +20,7 @@
    - Test comparatifs des trois transformations (Etape 4 à 6)
 
 5. Feature Selection, Réduction de Dimensionalité &  Scaling
-   - `**PCA**` sur les variables résultants de la transformation Logratio
+   - **`PCA`** sur les variables résultants de la transformation Logratio
    - Feature Selection sur l'ensemble des features déterminées comme pertinente lors de l'analyse bivarié
    - Utilisation d'un Scaler, `MinMaxScaler` ?
 
