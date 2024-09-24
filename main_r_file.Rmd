@@ -1,0 +1,265 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+```{r}
+# read xlsx files
+library(readxl)
+
+# tables ?
+library(readr)
+
+#global lib
+library(tidyverse)
+library(dplyr)
+
+# plot graphs
+library(ggplot2)
+
+# package for compositional vars dimensionality reduction
+library(compositions)
+
+library(caret)  # For train/test split
+library(stats) # linear reg 
+
+
+
+# package for correlation analysis.
+library('corrr')
+
+# plot correlations
+library(ggcorrplot)
+
+# Lib for PCA
+
+
+```
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+data <- read_excel("data/data_abs.xlsx")
+glimpse(data)
+
+```
+
+
+```{r}
+# How to filter
+# data_hlm <- filter(data, HLM > 5)
+data
+```
+
+```{r}
+data$HLM
+```
+```{r}
+colSums(is.na(data))
+```
+
+
+```{r}
+# Create a data frame with numeric variables
+numeric_vars_df <- data[sapply(data, is.numeric)]
+
+# Create a data frame with non-numeric variables
+non_numeric_vars_df <- data[sapply(data, Negate(is.numeric))]
+
+```
+
+
+```{r}
+pairs(numeric_vars_df)
+
+```
+
+```{r}
+summary(numeric_vars_df$HLM)
+```
+```{r}
+# Histogramme
+ggplot(numeric_vars_df, aes(x = HLM)) +
+  geom_histogram(binwidth = 1, fill = "#131453", color = "grey") +
+  labs(title = "Histogramme de HLM", x = "HLM", y = "Fréquence")
+
+# Boxplot
+```
+
+
+```{r}
+ggplot(numeric_vars_df, aes(y = HLM)) +
+  geom_boxplot(fill = "#131453") +
+  labs(title = "Boxplot de HLM", y = "HLM")
+
+# Notes: few outliers
+
+```
+## Title
+```{r}
+# Scatter plot
+ggplot(numeric_vars_df, aes(x = txabs, y = HLM)) +
+  geom_point() +
+  labs(title = "Représentation du taux d'HLM par Taux d'abstension", x = "Taux d'abstension", y = "HLM")
+
+# Bins for ranges of HLM distrib
+numeric_vars_df$HLM_binned <- cut(data$txabs, breaks = 5)
+
+# Box 
+ggplot(numeric_vars_df, aes(x = txabs, y = factor(HLM_binned))) +
+  geom_boxplot(fill = "blue") +
+  labs(title = "Boxplot du taux d'HLM par Taux d'abstension", x = "Taux d'abstension", y = "HLM")
+
+```
+
+```{r}
+library(ggplot2)
+
+# Define the function to generate boxplots for all numeric variables against binned txabs
+plot_boxplots_txabs <- function(df, txabs_column, n_bins = 10) {
+  
+  # Bin the txabs variable into the specified number of bins
+  df$txabs_binned <- cut(df[[txabs_column]], breaks = n_bins, labels = FALSE)
+  
+  # Loop through each numeric variable in the dataframe (excluding txabs and txabs_binned)
+  numeric_vars <- setdiff(names(df), c(txabs_column, "txabs_binned"))
+  
+  for (var in numeric_vars) {
+    
+    # Create the boxplot for the current variable vs txabs_binned
+    p <- ggplot(df, aes_string(x = "factor(txabs_binned)", y = var)) +
+      geom_boxplot(fill = "blue") +
+      labs(title = paste("Boxplot of", var, "by Binned Taux d'abstention"),
+           x = "Taux d'abstention (Binned)", 
+           y = var) +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+# Example usage
+# Assuming your dataframe is numeric_vars_df and txabs is present:
+plot_boxplots_txabs(numeric_vars_df, txabs_column = "txabs", n_bins = 10)
+
+```
+```{r}
+# Function to apply ILR transformation on selected columns
+apply_ilr_transformation <- function(df, cols_to_transform) {
+  
+  # Select only the columns to transform
+  selected_data <- df[, cols_to_transform]
+  
+  # Convert the selected columns to a composition object (required for ILR)
+  selected_data_composition <- acomp(selected_data)
+  
+  # Apply ILR transformation
+  ilr_transformed <- ilr(selected_data_composition)
+  
+  # Convert the ILR-transformed object to a dataframe
+  ilr_df <- as.data.frame(ilr_transformed)
+  
+  # Rename ILR-transformed columns (since ILR reduces the dimensionality by 1)
+  colnames(ilr_df) <- paste0("ILR_", seq_along(1:(ncol(selected_data) - 1)))
+  
+  # Combine the original dataframe with the new ILR-transformed columns
+  df_transformed <- cbind(df, ilr_df)
+  
+  return(df_transformed)
+}
+
+# Example usage
+# Assuming your dataframe is data and the columns you want to transform are named accordingly:
+columns_to_transform <- c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")
+
+# Apply the ILR transformation
+df_transformed <- apply_ilr_transformation(data, columns_to_transform)
+```
+
+
+```{r}
+df_transformed
+```
+```{r}
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(df_transformed$txabs, p = 0.8, list = FALSE)
+train_data <- df_transformed[train_index, ]
+test_data <- df_transformed[-train_index, ]
+
+# Fit the linear regression model
+model <- lm(txabs ~ ILR_1 + ILR_2 + ILR_3 + ILR_4 + ILR_5, data = train_data)
+
+# Summary of the model
+summary(model)
+
+# Make predictions on the test set
+predictions <- predict(model, newdata = test_data)
+
+# Evaluate the model (e.g., using RMSE)
+rmse <- sqrt(mean((test_data$txabs - predictions)^2))
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+```
+```{r}
+mean(data$txabs)
+```
+
+```{r}
+test_data$ILR_1
+```
+```{r}
+ggplot(test_data, aes(y = ILR_1)) +
+  geom_boxplot(fill = "#131453") +
+  labs(title = "Boxplot de HLM", y = "HLM")
+
+```
+```{r}
+df_transformed$HLM
+```
+
+
+```{r}
+library(caret)
+# List of columns to normalize
+columns_to_normalize <- c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho")
+
+# Apply preProcess to the desired columns
+process <- preProcess(df_transformed[columns_to_normalize], method = c("range"))
+
+# Predict (normalize) the columns
+norm_columns <- predict(process, df_transformed[columns_to_normalize])
+
+# Add the normalized columns back to the original dataframe
+df_scaled <- cbind(df_transformed, norm_columns)
+
+# View the updated dataframe
+head(df_scaled)
+colnames(df_scaled)
+
+
+```
+```{r}
+columns_to_pca <- c("ILR_1", "ILR_2", "ILR_3", "ILR_4", "ILR_5")
+
+df_scaled.pca <- princomp(df_scaled[columns_to_pca])
+summary(df_scaled.pca)
+```
+```{r}
+df_scaled.pca
+```
+```{r}
+df_scaled.pca$loadings[, 1:2]
+```
+
+```{r}
+
+```
+
+
+```{r}
+df_scaled <- cbind(df_transformed, norm_columns)
+```
+
+
