@@ -48,40 +48,32 @@ generate_reactable_table <- function(data, columns = "all", bar_height = "16px",
 }
 
 # return a dataframe with scaled vars, if none are given, all columns of the dataframe will be scaled
-# usage example df_scaled <- min_max_scaling(data, c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho"))
-min_max_scaling <- function(df, columns_to_normalize = "all") {
+# usage example df_scaled <- min_max_scaling(data, "txabs", c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho"), False)
+# returns original df with scaled cols
+min_max_scaling <- function(df, target, columns_to_normalize = "all", return_all_cols = TRUE) {
 
   # If columns_to_normalize is set to "all", use all numeric columns from the dataset
   if (identical(columns_to_normalize, "all")) {
     columns_to_normalize <- names(df)[sapply(df, is.numeric)]
   }
 
+  # Separate the target variable from the dataframe
+  target_var <- df[[target]]
+
   # Apply preProcess to the selected columns
   process <- preProcess(df[columns_to_normalize], method = c("range"))
 
   # Predict (normalize) the columns
-  norm_columns <- predict(process, df[columns_to_normalize])
+  norm_columns <- predict(process, newdata = df[columns_to_normalize])
 
   # Replace the original columns with the normalized columns
   df[columns_to_normalize] <- norm_columns
 
-  # Return the dataframe with scaled columns replaced
-  return(df)
-}
+  # Restore the original target variable if necessary
+  if (!return_all_cols) {
+    df[[target]] <- target_var
+    return(df[c(target, columns_to_normalize)])  # Return only the normalized columns and the target variable
+  }
 
-
-# Function to split data into train and test sets
-train_test_split <- function(df, target_column = "txabs", p = 0.8) {
-  # Set seed for reproducibility
-  set.seed(123)
-
-  # Create the training index
-  train_index <- createDataPartition(df[[target_column]], p = p, list = FALSE)
-
-  # Split the data into training and test sets
-  train_data <- df[train_index, ]
-  test_data <- df[-train_index, ]
-
-  # Return a list containing both train and test sets
-  return(list(train = train_data, test = test_data))
+  return(df)  # Return the entire dataframe with normalized columns
 }
