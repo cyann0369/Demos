@@ -1,4 +1,5 @@
 *.html
 *main_r_file*
 .RData
-*.Rproj*
+# *.Rproj*
+demos
