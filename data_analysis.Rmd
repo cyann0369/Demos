@@ -7,13 +7,6 @@ output: html_notebook
 ## Imports
 
 ```{r}
-# read xlsx files
-library(readxl)
-
-# aefaefaefaeffaeaef
-
-# tables ?
-library(readr)
 
 # Better table graphics
 library(reactable)
@@ -49,10 +42,16 @@ library(ggcorrplot)
 
 ```
 
+
+```{r, include=FALSE}
+source("data_analysis.R", local = knitr::knit_global())
+```
+
+
 ## Data Exploration
 
 ```{r}
-data <- read_excel("data/data_abs.xlsx")
+data <- load_data("data/data_abs.xlsx")
 glimpse(data)
 ```
 ### Checking Missing Values
