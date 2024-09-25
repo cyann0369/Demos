@@ -1,13 +1,10 @@
 library(readxl)
 library(reactable)
-<<<<<<< HEAD
 
 library(caret)
-=======
 # library(htmltools)
 library(corrplot)
 
->>>>>>> 95846970266e4d546a0ad24326f2b8812ab6a275
 
 load_data <- function(file_path){
   data <- read_excel(file_path)
@@ -53,7 +50,6 @@ generate_reactable_table <- function(data, columns = "all", bar_height = "16px",
   )
 }
 
-<<<<<<< HEAD
 # return a dataframe with scaled vars, if none are given, all columns of the dataframe will be scaled
 # usage example df_scaled <- min_max_scaling(data, "txabs", c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho"), False)
 # returns original df with scaled cols
@@ -84,10 +80,8 @@ min_max_scaling <- function(df, target, columns_to_normalize = "all", return_all
 
   return(df)  # Return the entire dataframe with normalized columns
 }
-=======
 
 draw_correlation_heatmap <- function(data){
   graph <- corrplot(cor(data), type="upper", tl.col="black", tl.srt=45)
   return(graph)
 }
->>>>>>> 95846970266e4d546a0ad24326f2b8812ab6a275

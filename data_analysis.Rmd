@@ -23,7 +23,7 @@ library(ggplot2)
 library(compositions)
 
 library(caret)  # For train/test split
-library(stats) # linear reg 
+library(stats) # linear reg
 
 # package for correlation analysis.
 library('corrr')
@@ -84,10 +84,10 @@ data
 ### Analyse Bivarié
 
 
-## 
+##
 
 #### AJOUTER PIECHART PROPORTION DE CHAQUE PROFESSION
- 
+
 ## Preprocessing
 
 ```{r}
@@ -131,7 +131,7 @@ colnames(train_data)
 
 ```
 
- 
+
 ## Linear Regression
 
 ```{r}
@@ -150,7 +150,7 @@ rmse <- sqrt(mean((test_data$txabs - predictions)^2))
 cat("Root Mean Squared Error (RMSE):", rmse, "\n")
 ```
 ```{r}
-X_train 
+X_train
 ```
 
 
@@ -211,7 +211,3 @@ ggplot(gapDF, aes(x=1:nrow(gapDF))) +
     labs(x="Number of Clusters", y="Gap", title="Gap Curve")
 
 ```
-
-
-
-
