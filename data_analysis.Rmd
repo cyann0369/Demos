@@ -84,5 +84,58 @@ summary(data$HLM)
 ### Analyse Bivarié
 
 
+## 
+
+#### AJOUTER PIECHART PROPORTION DE CHAQUE PROFESSION
+ 
+## Preprocessing
+
+
+### Scaling
+```{r}
+
+# return a dataframe with scaled vars, if none are given, all columns of the dataframe will be scaled
+
+# List of columns to normalize
+columns_to_normalize <- c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho")
+
+# Apply preProcess to the desired columns
+df_scaled <- min_max_scaling(data, columns_to_normalize)
+
+head(df_scaled)
+```
+### Train-Test Split
+
+```{r}
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(df_scaled$txabs, p = 0.8, list = FALSE)
+train_data <- df_transformed[train_index, ]
+test_data <- df_transformed[-train_index, ]
+
+```
+
+```{r}
+colnames(train_data)
+
+```
+
+ 
+## Linear Regression
+
+```{r}
+# Fit the linear regression model
+model <- lm(txabs ~ HLM + Salairemoy + TxPauv + NonDiplome + txcho, data = train_data)
+# model <- lm(txabs ~ ., data = train_data)
+
+# Summary of the model
+summary(model)
+
+# Make predictions on the test set
+predictions <- predict(model, newdata = test_data)
+
+# Evaluate the model (e.g., using RMSE)
+rmse <- sqrt(mean((test_data$txabs - predictions)^2))
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+```
 
 
