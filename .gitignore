@@ -5,3 +5,4 @@
 demos
 .Rproj.user
 .Rhistory
+*.knit.md
