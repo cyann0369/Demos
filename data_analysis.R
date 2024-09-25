@@ -1,6 +1,8 @@
 library(readxl)
 library(reactable)
 # library(htmltools)
+library(corrplot)
+
 
 load_data <- function(file_path){
   data <- read_excel(file_path)
@@ -44,4 +46,10 @@ generate_reactable_table <- function(data, columns = "all", bar_height = "16px",
     data[, columns, drop = FALSE],  # Select only the specified columns
     columns = col_definitions
   )
+}
+
+
+draw_correlation_heatmap <- function(data){
+  graph <- corrplot(cor(data), type="upper", tl.col="black", tl.srt=45)
+  return(graph)
 }
