@@ -70,15 +70,14 @@ generate_reactable_table(data)
 
 
 ```{r}
-library(corrplot)
-data_for_corr = data[, !(names(data) %in% c("Department", "Code"))]
-corrplot(cor(data_for_corr), type="upper", order="hclust", tl.col="black", tl.srt=45)
+draw_correlation_heatmap(data)
 ```
 
 ### Analyse Univarié
 
 ```{r}
 summary(data$HLM)
+data
 ```
 
 

@@ -1,0 +1,558 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+```{r}
+# read xlsx files
+library(readxl)
+
+# tables ?
+library(readr)
+
+# Better table graphics
+library(reactable)
+library(htmltools)
+
+
+#global lib
+library(tidyverse)
+library(dplyr)
+
+# plot graphs
+library(ggplot2)
+
+# package for compositional vars dimensionality reduction
+library(compositions)
+
+library(caret)  # For train/test split
+library(stats) # linear reg 
+
+
+
+# package for correlation analysis.
+library(corrr)
+
+# plot correlations
+library(ggcorrplot)
+
+# Lib for PCA
+
+library(stargazer)
+```
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+data <- read_excel("data/data_abs.xlsx")
+glimpse(data)
+
+
+
+```
+
+```{r}
+
+```
+
+```{r}
+# How to filter
+# data_hlm <- filter(data, HLM > 5)
+stargazer(data)
+```
+
+```{r}
+table_11 <- summary(data)
+```
+
+```{r}
+# stargazer(data, summary=F, title="Table 1: Returns", align=T, digits=4, out="Table1_Ret.txt", no.space=T, flip=F)
+# stargazer(data, type = "text", title="Descriptive statistics", out="table1.txt")
+# stargazer(table_11, type='html')
+# stargazer(table_11, type="latex")
+
+```
+
+```{r}
+
+
+car_data <- MASS::Cars93[20:49, c("Make", "MPG.city", "MPG.highway")]
+
+bar_chart <- function(label, width = "100%", height = "16px", fill = "#15607A", background = "#EEEEEE") {
+  bar <- div(style = list(background = fill, width = width, height = height))
+  chart <- div(style = list(flexGrow = 1, marginLeft = "8px", background = background), bar)
+  div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+reactable(
+  car_data,
+  columns = list(
+    MPG.city = colDef(align = "left", cell = function(value) {
+      width <- paste0(value / max(car_data$MPG.city) * 100, "%")
+      bar_chart(value, width = width)
+    }),
+    MPG.highway = colDef(align = "left", cell = function(value) {
+      width <- paste0(value / max(car_data$MPG.highway) * 100, "%")
+      bar_chart(value, width = width)
+    })
+  )
+)
+
+```
+
+```{r}
+
+# Define the bar chart function for use in the table
+bar_chart <- function(label, width = "100%", height = "16px", fill = "#15607A", background = "#EEEEEE") {
+  bar <- div(style = list(background = fill, width = width, height = height))
+  chart <- div(style = list(flexGrow = 1, background = background), bar) #, marginRight = "10px"
+  div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+# Function to generate the reactable table based on given parameters
+generate_reactable_table <- function(data, columns = "all") {
+  # If columns is set to "all", use all columns from the dataset
+  if (identical(columns, "all")) {
+    columns <- names(data)
+  }
+  
+  # Define a dynamic columns list for reactable
+  col_definitions <- list()
+  
+  for (col in columns) {
+    # Check if the column is numeric to apply the bar chart, else render normally
+    if (is.numeric(data[[col]])) {
+      col_definitions[[col]] <- colDef(align = "left", cell = function(value) {
+        # Dynamically adjust bar width based on the column's maximum value
+        width <- paste0(value / max(data[[col]]) * 100, "%")
+        bar_chart(value, width = width)
+      })
+    } else {
+      # Non-numeric columns just display their values as-is
+      col_definitions[[col]] <- colDef(align = "left")
+    }
+  }
+  
+  # Render the reactable table
+  reactable(
+    data[, columns, drop = FALSE],  # Select only the specified columns
+    columns = col_definitions
+  )
+}
+
+# Test the function with the Cars93 dataset, displaying the Make, MPG.city, and MPG.highway columns
+
+
+# Example usage with specific columns
+generate_reactable_table(data, columns = c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri"))
+
+# Example usage with all columns (default)
+generate_reactable_table(data)
+
+
+```
+
+```{r}
+generate_reactable_table <- function(data, columns = "all") {
+  # If columns is set to "all", use all columns from the dataset
+  if (identical(columns, "all")) {
+    columns <- names(data)
+  }
+  
+  # Define a dynamic columns list for reactable
+  col_definitions <- list()
+  
+  for (col in columns) {
+    # Check if the column is numeric to apply the bar chart, else render normally
+    if (is.numeric(data[[col]])) {
+      col_definitions[[col]] <- colDef(
+        align = "left",
+        width = 150,  # Increase column width to create more space
+        style = list(padding = "0 20px"),  # Add horizontal padding
+        cell = function(value) {
+          # Dynamically adjust bar width based on the column's maximum value
+          width <- paste0(value / max(data[[col]]) * 100, "%")
+          bar_chart(value, width = width)
+        }
+      )
+    } else {
+      # Non-numeric columns just display their values as-is, but with extra padding and width
+      col_definitions[[col]] <- colDef(
+        align = "left",
+        width = 150,  # Increase column width
+        style = list(padding = "0 20px")  # Add padding for spacing
+      )
+    }
+  }
+  
+  # Render the reactable table
+  reactable(
+    data[, columns, drop = FALSE],  # Select only the specified columns
+    columns = col_definitions
+  )
+}
+
+generate_reactable_table(data, columns = c("Department", "Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri"))
+generate_reactable_table
+```
+
+```{r}
+# Adjusted bar chart function
+bar_chart <- function(label, width = "100%", height = "16px", fill = "#15607A", background = "#EEEEEE") {
+  bar <- div(style = list(background = fill, width = width, height = height))
+  chart <- div(style = list(flexGrow = 1, marginLeft = "8px", background = background), bar)
+  div(style = list(display = "flex", alignItems = "center"), label, chart)
+}
+
+# Function to generate the reactable table with capped bar width
+generate_reactable_table <- function(data, columns = "all", min_width = 5) {
+  # If columns is set to "all", use all columns from the dataset
+  if (identical(columns, "all")) {
+    columns <- names(data)
+  }
+  
+  # Define a dynamic columns list for reactable
+  col_definitions <- list()
+  
+  for (col in columns) {
+    # Check if the column is numeric to apply the bar chart, else render normally
+    if (is.numeric(data[[col]])) {
+      col_definitions[[col]] <- colDef(align = "left", cell = function(value) {
+        # Dynamically adjust bar width based on the column's maximum value
+        max_value <- max(data[[col]], na.rm = TRUE)
+        
+        # If the column has a very small range, normalize it
+        if (max_value > 0) {
+          width <- paste0(pmin((value / max_value * 100), 100), "%")
+        } else {
+          width <- paste0(min_width, "%")
+        }
+        
+        bar_chart(value, width = width)
+      })
+    } else {
+      # Non-numeric columns just display their values as-is
+      col_definitions[[col]] <- colDef(align = "left")
+    }
+  }
+  
+  # Render the reactable table
+  reactable(
+    data[, columns, drop = FALSE],  # Select only the specified columns
+    columns = col_definitions
+  )
+}
+
+# Test the function with a sample dataset
+generate_reactable_table(data, columns = c("Department", "Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri", "txcho", "NonDiplome"))
+generate_reactable_table(data)
+
+```
+
+
+```{r}
+reactable(data)
+```
+
+
+```{r}
+stargazer(data, type = "text", summary = TRUE, out="table1.txt")
+```
+
+
+```{r}
+data$HLM
+```
+```{r}
+colSums(is.na(data))
+```
+
+
+```{r}
+# Create a data frame with numeric variables
+numeric_vars_df <- data[sapply(data, is.numeric)]
+
+# Create a data frame with non-numeric variables
+non_numeric_vars_df <- data[sapply(data, Negate(is.numeric))]
+
+```
+
+
+```{r}
+pairs(numeric_vars_df)
+
+```
+
+```{r}
+summary(numeric_vars_df$HLM)
+```
+```{r}
+# Histogramme
+ggplot(numeric_vars_df, aes(x = HLM)) +
+  geom_histogram(binwidth = 1, fill = "#131453", color = "grey") +
+  labs(title = "Histogramme de HLM", x = "HLM", y = "Fréquence")
+
+# Boxplot
+```
+
+
+```{r}
+ggplot(numeric_vars_df, aes(y = HLM)) +
+  geom_boxplot(fill = "#131453") +
+  labs(title = "Boxplot de HLM", y = "HLM")
+
+# Notes: few outliers
+
+```
+## Title
+```{r}
+# Scatter plot
+ggplot(numeric_vars_df, aes(x = txabs, y = HLM)) +
+  geom_point() +
+  labs(title = "Représentation du taux d'HLM par Taux d'abstension", x = "Taux d'abstension", y = "HLM")
+
+# Bins for ranges of HLM distrib
+numeric_vars_df$HLM_binned <- cut(data$txabs, breaks = 5)
+
+# Box 
+ggplot(numeric_vars_df, aes(x = txabs, y = factor(HLM_binned))) +
+  geom_boxplot(fill = "blue") +
+  labs(title = "Boxplot du taux d'HLM par Taux d'abstension", x = "Taux d'abstension", y = "HLM")
+
+```
+
+```{r}
+library(ggplot2)
+
+# Define the function to generate boxplots for all numeric variables against binned txabs
+plot_boxplots_txabs <- function(df, txabs_column, n_bins = 10) {
+  
+  # Bin the txabs variable into the specified number of bins
+  df$txabs_binned <- cut(df[[txabs_column]], breaks = n_bins, labels = FALSE)
+  
+  # Loop through each numeric variable in the dataframe (excluding txabs and txabs_binned)
+  numeric_vars <- setdiff(names(df), c(txabs_column, "txabs_binned"))
+  
+  for (var in numeric_vars) {
+    
+    # Create the boxplot for the current variable vs txabs_binned
+    p <- ggplot(df, aes_string(x = "factor(txabs_binned)", y = var)) +
+      geom_boxplot(fill = "blue") +
+      labs(title = paste("Boxplot of", var, "by Binned Taux d'abstention"),
+           x = "Taux d'abstention (Binned)", 
+           y = var) +
+      theme_minimal()
+    
+    # Print the plot
+    print(p)
+  }
+}
+
+# Example usage
+# Assuming your dataframe is numeric_vars_df and txabs is present:
+plot_boxplots_txabs(numeric_vars_df, txabs_column = "txabs", n_bins = 10)
+
+```
+```{r}
+# Function to apply ILR transformation on selected columns
+apply_ilr_transformation <- function(df, cols_to_transform) {
+  
+  # Select only the columns to transform
+  selected_data <- df[, cols_to_transform]
+  
+  # Convert the selected columns to a composition object (required for ILR)
+  selected_data_composition <- acomp(selected_data)
+  
+  # Apply ILR transformation
+  ilr_transformed <- ilr(selected_data_composition)
+  
+  # Convert the ILR-transformed object to a dataframe
+  ilr_df <- as.data.frame(ilr_transformed)
+  
+  # Rename ILR-transformed columns (since ILR reduces the dimensionality by 1)
+  colnames(ilr_df) <- paste0("ILR_", seq_along(1:(ncol(selected_data) - 1)))
+  
+  # Combine the original dataframe with the new ILR-transformed columns
+  df_transformed <- cbind(df, ilr_df)
+  
+  return(df_transformed)
+}
+
+# Example usage
+# Assuming your dataframe is data and the columns you want to transform are named accordingly:
+columns_to_transform <- c("Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri")
+
+# Apply the ILR transformation
+df_transformed <- apply_ilr_transformation(data, columns_to_transform)
+```
+
+
+```{r}
+df_transformed
+```
+```{r}
+# Split the data into training and testing sets
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(df_transformed$txabs, p = 0.8, list = FALSE)
+train_data <- df_transformed[train_index, ]
+test_data <- df_transformed[-train_index, ]
+
+# Fit the linear regression model
+model <- lm(txabs ~ ILR_1 + ILR_2 + ILR_3 + ILR_4 + ILR_5, data = train_data)
+
+# Summary of the model
+summary(model)
+
+# Make predictions on the test set
+predictions <- predict(model, newdata = test_data)
+
+# Evaluate the model (e.g., using RMSE)
+rmse <- sqrt(mean((test_data$txabs - predictions)^2))
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+```
+```{r}
+mean(data$txabs)
+```
+
+```{r}
+test_data$ILR_1
+```
+```{r}
+ggplot(test_data, aes(y = ILR_1)) +
+  geom_boxplot(fill = "#131453") +
+  labs(title = "Boxplot de HLM", y = "HLM")
+
+```
+```{r}
+df_transformed$HLM
+```
+
+
+```{r}
+library(caret)
+# List of columns to normalize
+columns_to_normalize <- c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho")
+
+# Apply preProcess to the desired columns
+process <- preProcess(df_transformed[columns_to_normalize], method = c("range"))
+
+# Predict (normalize) the columns
+norm_columns <- predict(process, df_transformed[columns_to_normalize])
+
+# Add the normalized columns back to the original dataframe
+df_scaled <- cbind(df_transformed, norm_columns)
+
+# View the updated dataframe
+head(df_scaled)
+colnames(df_scaled)
+
+
+```
+```{r}
+columns_to_pca <- c("ILR_1", "ILR_2", "ILR_3", "ILR_4", "ILR_5")
+
+df_scaled.pca <- princomp(df_scaled[columns_to_pca])
+summary(df_scaled.pca)
+```
+```{r}
+df_scaled.pca
+```
+```{r}
+df_scaled.pca$loadings[, 1:2]
+```
+
+```{r}
+library(FactoMineR)
+
+
+```
+
+```{r}
+df_scaled[columns_to_pca]
+```
+```{r}
+data
+#norm_columns
+#cbind(df_transformed,norm_columns)
+```
+
+
+```{r}
+df_scaled <- cbind(df_transformed, norm_columns)
+df_scaled[columns_to_pca]
+df_scaled.pca <- PCA(df_scaled[columns_to_pca])
+```
+```{r}
+summary(df_scaled.pca)
+```
+```{r}
+data %>% select(Department)
+```
+
+
+```{r}
+
+metiers <- data %>% select(c(Agri,Ouvrier,Employe,PI,Cadres,Artisant,Agri))
+metiers_ilr <- apply_ilr_transformation(metiers) %>% select(starts_with("ILR_"))
+metiers_ilr <- cbind(data %>% select(Department),metiers_ilr,norm_columns)
+metiers_ilr <- metiers_ilr %>% remove_rownames %>% column_to_rownames(var="Department")
+res.pca <- PCA(metiers_ilr, graph = FALSE,ncp=10)
+library(factoextra)
+fviz_pca_ind(res.pca, col.ind="cos2") +
+      scale_color_gradient2(low="blue", mid="yellow",
+      high="red", midpoint=0.6, space = "Lab")
+
+fviz_pca_var(res.pca, col.var="contrib")+
+ scale_color_gradient2(low="blue",mid="yellow",
+           high="red", midpoint=20, space ="Lab")
+fviz_pca_biplot(res.pca, label ="var", col.ind="cos2")
+res.pca$var$contrib
+barplot(res.pca$eig[, 2], names.arg=1:nrow(res.pca$eig), 
+       main = "Variances",
+       xlab = "Principal Components",
+       ylab = "Percentage of variances",
+       col ="steelblue")
+# Add connected line segments to the plot
+lines(x = 1:nrow(res.pca$eig), res.pca$eig[, 2], 
+      type="b", pch=19, col = "red")
+
+res.pca$eig
+```
+```{r}
+variables = cbind(data.frame(res.pca$ind$coord[,1:5]),data$txabs)
+colnames(variables)<-c("Dim1","Dim2","Dim3","Dim4","Dim5","txabs") 
+head(variables)
+```
+
+
+```{r}
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(variables$txabs, p = 0.8, list = FALSE)
+train_data <- variables[train_index, ]
+test_data <- variables[-train_index, ]
+
+# Fit the linear regression model
+model <- lm(txabs ~ Dim1 + Dim2 + Dim3 + Dim4 + Dim5, data = train_data)
+model <- lm(txabs ~ Dim1, data = train_data)
+
+# Summary of the model
+summary(model)
+
+# Make predictions on the test set
+predictions <- predict(model, newdata = test_data)
+
+# Evaluate the model (e.g., using RMSE)
+rmse <- sqrt(mean((test_data$txabs - predictions)^2))
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+```
+```{r}
+cor.mat <- round(cor(data),2)
+head(cor.mat[, 1:6])
+```
+
+
+
+
+
+
