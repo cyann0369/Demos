@@ -2,13 +2,56 @@ library(readxl)
 library(reactable)
 # library(htmltools)
 library(corrplot)
+library(compositions)
 
+
+
+###################################
+#Dataframes manipulation functions#
+###################################
 
 load_data <- function(file_path){
   data <- read_excel(file_path)
   data <- data %>% remove_rownames %>% column_to_rownames(var="Department")
   return(data[,-c(1:2)])
 }
+
+
+
+logratio_transform <- function(df, cols_to_transform, variant) {
+  
+  # Select only the columns to transform
+  data <- df[, cols_to_transform]
+  
+  # Convert the selected columns to a composition object (required for transfotmation)
+  data <- acomp(data)
+  
+  # Apply  transformation
+  switch(variant,
+         "clr"={
+           data <- clr(data)
+         },
+         "ilr"={
+           data <- ilr(data)
+         },
+         "alr"={
+           data <- alr(data)
+         })
+  # Convert the transformed object to a dataframe
+  data <- as.data.frame(data)
+  
+  # Rename ILR-transformed columns (since ILR reduces the dimensionality by 1)
+  #colnames(ilr_df) <- paste0("ILR_", seq_along(1:(ncol(selected_data) - 1)))
+  
+  # Combine the original dataframe with the new ILR-transformed columns
+  #df_transformed <- cbind(df, ilr_df)
+  
+  return(data)
+}
+
+##################
+#Tables functions#
+##################
 
 generate_reactable_table <- function(data, columns = "all", bar_height = "16px", bar_fill = "#15607A", bar_background = "#EEEEEE") {
 
@@ -49,7 +92,15 @@ generate_reactable_table <- function(data, columns = "all", bar_height = "16px",
 }
 
 
+
+
+####################
+#Graphics functions#
+####################
+
 draw_correlation_heatmap <- function(data){
   graph <- corrplot(cor(data), type="upper", tl.col="black", tl.srt=45)
   return(graph)
 }
+
+
