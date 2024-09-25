@@ -3,3 +3,5 @@
 .RData
 # *.Rproj*
 demos
+.Rproj.user
+.Rhistory

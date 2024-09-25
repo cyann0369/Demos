@@ -1,7 +1,11 @@
 ---
-title: "R Notebook"
+title: "Demos Data Analysis Notebook"
 output: html_notebook
 ---
+# Demos Data Project
+
+## Imports
+
 ```{r}
 # read xlsx files
 library(readxl)
@@ -43,18 +47,23 @@ library(ggcorrplot)
 
 ```
 
+## Data Exploration
+
 ```{r}
 data <- read_excel("data/data_abs.xlsx")
 glimpse(data)
 ```
+### Checking Missing Values
 
 ```{r}
 colSums(is.na(data))
 ```
 
+### Visualizing the Data
 
 ```{r}
 summary(data)
+
 ```
 
 ```{r}
@@ -109,73 +118,22 @@ generate_reactable_table(data)
 
 ```
 
+## Data Analysis
+
+
 ```{r}
-# Adjusted bar chart function
-bar_chart <- function(label, width = "100%", height = "16px", fill = "#15607A", background = "#EEEEEE") {
-  bar <- div(style = list(background = fill, width = width, height = height))
-  chart <- div(style = list(flexGrow = 1, marginLeft = "8px", background = background), bar)
-  div(style = list(display = "flex", alignItems = "center"), label, chart)
-}
-
-# Function to generate the reactable table with capped bar width
-generate_reactable_table <- function(data, columns = "all", min_width = 5) {
-  # If columns is set to "all", use all columns from the dataset
-  if (identical(columns, "all")) {
-    columns <- names(data)
-  }
-  
-  # Define a dynamic columns list for reactable
-  col_definitions <- list()
-  
-  for (col in columns) {
-    # Check if the column is numeric to apply the bar chart, else render normally
-    if (is.numeric(data[[col]])) {
-      col_definitions[[col]] <- colDef(align = "left", cell = function(value) {
-        # Dynamically adjust bar width based on the column's maximum value
-        max_value <- max(data[[col]], na.rm = TRUE)
-        
-        # If the column has a very small range, normalize it
-        if (max_value > 0) {
-          width <- paste0(pmin((value / max_value * 100), 100), "%")
-        } else {
-          width <- paste0(min_width, "%")
-        }
-        
-        bar_chart(value, width = width)
-      })
-    } else {
-      # Non-numeric columns just display their values as-is
-      col_definitions[[col]] <- colDef(align = "left")
-    }
-  }
-  
-  # Render the reactable table
-  test_table <- reactable(
-    data[, columns, drop = FALSE],  # Select only the specified columns
-    columns = col_definitions
-  )
-    
-  # latex_table  <- xtable(test_table)
-  # print(latex_table, file = "table_scaled.tex", type = "latex")
-  
-  
-}
-
-
-# Test the function with a sample dataset
-generate_reactable_table(data, columns = c("Department", "Ouvrier", "Employe", "PI", "Cadres", "Artisant", "Agri", "txcho", "NonDiplome"))
-
-
+library(corrplot)
+data_for_corr = data[, !(names(data) %in% c("Department", "Code"))]
+corrplot(cor(data_for_corr), type="upper", order="hclust", tl.col="black", tl.srt=45)
 ```
 
-```{r}
-summary(numeric_vars_df$HLM)
-```
+### Analyse Univarié
 
 ```{r}
-# MATRICE CORR 
+summary(data$HLM)
 ```
 
 
+### Analyse Bivarié
 
 
