@@ -144,3 +144,12 @@ draw_correlation_heatmap <- function(data){
   return(graph)
 }
 
+draw_scatterplot <- function(data,x_colname,y_colname){
+  graph <- ggplot(data,aes(x=data[,x_colname],y=data[,y_colname])) +
+      xlab(x_colname) +
+      ylab(y_colname) +
+      geom_point() +
+      geom_smooth(method=lm , color="red", se=TRUE)
+    return(graph)
+  }
+
