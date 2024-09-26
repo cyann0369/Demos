@@ -26,7 +26,7 @@ library(caret)  # For train/test split
 library(stats) # linear reg
 
 # package for correlation analysis.
-library('corrr')
+library(corrr)
 
 # plot correlations
 library(ggcorrplot)
