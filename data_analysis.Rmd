@@ -10,7 +10,7 @@ output: html_notebook
 # plot graphs
 #library(ggplot2)
 
-#library(caret)  
+#library(caret)
 #library(stats) # linear reg
 
 # package for correlation analysis.
