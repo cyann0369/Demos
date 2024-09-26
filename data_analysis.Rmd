@@ -7,34 +7,20 @@ output: html_notebook
 ## Imports
 
 ```{r}
-
-# Better table graphics
-library(reactable)
-library(htmltools)
-
-#global lib
-library(tidyverse)
-library(dplyr)
-
 # plot graphs
-library(ggplot2)
+#library(ggplot2)
 
-# package for compositional vars dimensionality reduction
-library(compositions)
-
-library(caret)  # For train/test split
-library(stats) # linear reg
+#library(caret)
+#library(stats) # linear reg
 
 # package for correlation analysis.
-library(corrr)
+#library('corrr')
 
 # plot correlations
-library(ggcorrplot)
+#library(ggcorrplot)
 
 # Lib for Clustering
 library(cluster)
-
-
 ```
 
 
@@ -72,8 +58,15 @@ generate_reactable_table(data)
 ```{r}
 draw_correlation_heatmap(data)
 ```
+```{r}
+draw_scatterplot(data,"Salairemoy","NonDiplome")
+draw_scatterplot(data,"TxPauv","txcho")
+draw_scatterplot(data,"TxPauv","txabs")
+```
 
-### Analyse Univarié
+
+
+### Analyse Univariée
 
 ```{r}
 summary(data$HLM)
@@ -87,6 +80,7 @@ data
 ##
 
 #### AJOUTER PIECHART PROPORTION DE CHAQUE PROFESSION
+
 
 ## Preprocessing
 
@@ -185,10 +179,6 @@ X_train$Cluster <- kmeans_result$cluster
 ```
 
 ```{r}
-# Load necessary libraries
-library(cluster)   # For clusGap and PAM
-library(ggplot2)   # For data visualization
-
 # Step 1: Calculate the Gap Statistic
 theGap <- clusGap(X_train, FUNcluster = pam, K.max = k)
 
