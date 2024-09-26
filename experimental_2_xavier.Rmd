@@ -1,0 +1,239 @@
+---
+title: "Demos Data Analysis Notebook"
+output: html_notebook
+---
+# Demos Data Project
+
+## Imports
+
+```{r}
+# plot graphs
+#library(ggplot2)
+
+#library(caret)  
+#library(stats) # linear reg
+
+# package for correlation analysis.
+#library('corrr')
+
+# plot correlations
+#library(ggcorrplot)
+
+# Lib for Clustering
+library(cluster)
+```
+
+
+```{r, include=FALSE}
+source("data_analysis.R", local = knitr::knit_global())
+```
+
+
+## Data Exploration
+
+```{r}
+data <- load_data("data/data_abs.xlsx")
+glimpse(data)
+```
+### Checking Missing Values
+
+```{r}
+colSums(is.na(data))
+```
+
+### Visualizing the Data
+
+```{r}
+summary(data)
+
+```
+
+```{r}
+generate_reactable_table(data)
+```
+
+## Data Analysis
+
+
+```{r}
+draw_correlation_heatmap(data)
+```
+```{r}
+
+draw_scatterplot(data,"Salairemoy","NonDiplome")
+draw_scatterplot(data,"TxPauv","txcho")
+draw_scatterplot(data,"TxPauv","txabs")
+```
+
+
+
+### Analyse Univariée
+
+```{r}
+summary(data$HLM)
+data
+```
+
+
+### Analyse Bivarié
+
+
+##
+
+#### AJOUTER PIECHART PROPORTION DE CHAQUE PROFESSION
+
+
+## Preprocessing
+
+```{r}
+data
+```
+
+### Scaling
+```{r}
+# List of columns to normalize
+columns_to_normalize <- c("HLM", "Salairemoy", "TxPauv", "NonDiplome", "txcho")
+
+# Apply preProcess to the desired columns
+df_scaled <- min_max_scaling(data, "txabs", columns_to_normalize, FALSE)
+
+head(df_scaled)
+```
+### Train-Test Split
+
+```{r}
+set.seed(123)  # For reproducibility
+train_index <- createDataPartition(df_scaled$txabs, p = 0.8, list = FALSE)
+train_data <- df_scaled[train_index, ]
+test_data <- df_scaled[-train_index, ]
+
+X_train <- select(train_data, -txabs)  # Select all columns except txabs
+y_train <- train_data$txabs  # Target variable
+
+X_test <- select(test_data, -txabs)  # Select all columns except txabs
+y_test <- test_data$txabs  # Target variable
+
+
+```
+
+```{r}
+X_train
+```
+
+
+```{r}
+colnames(train_data)
+
+```
+
+
+## Linear Regression
+
+```{r}
+# Fit the linear regression model
+model <- lm(txabs ~ HLM + Salairemoy + TxPauv + NonDiplome + txcho, data = train_data)
+#model <- lm(txabs ~ HLM + Salairemoy + TxPauv, data = train_data)
+# model <- lm(txabs ~ ., data = train_data)
+
+# Summary of the model
+summary(model)
+
+# Make predictions on the test set
+predictions <- predict(model, newdata = test_data)
+
+# Evaluate the model (e.g., using RMSE)
+rmse <- sqrt(mean((test_data$txabs - predictions)^2))
+cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+```
+```{r}
+df_scaled[-1]
+```
+
+
+
+
+```{r}
+# Determine the optimal number of clusters using the Elbow Method
+wss <- numeric(10) # to store within-cluster sum of squares for each cluster number
+
+for (k in 1:10) {
+  #kmeans_model <- kmeans(X_train, centers = k, nstart = 5)
+  kmeans_model <- kmeans(df_scaled[-1], centers = k, nstart = 5)
+  wss[k] <- kmeans_model$tot.withinss
+}
+
+# Plot the Elbow Curve
+elbow_data <- data.frame(Clusters = 1:10, WSS = wss)
+ggplot(elbow_data, aes(x = Clusters, y = WSS)) +
+  geom_line() +
+  geom_point() +
+  labs(title = "Elbow Method for Optimal Clusters",
+       x = "Number of Clusters",
+       y = "Total Within-Cluster Sum of Squares")
+
+# Step 3: Fit the K-means model with the chosen number of clusters
+optimal_clusters <- 3 # Change this based on the elbow plot
+#kmeans_result <- kmeans(X_train, centers = optimal_clusters, nstart = 5)
+kmeans_result <- kmeans(df_scaled[-1], centers = optimal_clusters, nstart = 5)
+
+# View the results
+print(kmeans_result)
+
+# Add the cluster assignments to the original data
+df_scaled$Cluster <- kmeans_result$cluster
+
+```
+
+```{r}
+# Step 1: Calculate the Gap Statistic
+#
+#theGap <- clusGap(X_train, FUNcluster = pam, K.max = k)
+theGap <- clusGap(df_scaled[-1], FUNcluster = pam, K.max = k)
+
+# Step 2: Convert Gap Statistic results to a data frame
+gapDF <- as.data.frame(theGap$Tab)
+
+# Step 3: Plot logW curves
+ggplot(gapDF, aes(x=1:nrow(gapDF))) +
+    geom_line(aes(y=logW), color="blue") +
+    geom_point(aes(y=logW), color="blue") +
+    geom_line(aes(y=E.logW), color="green") +
+    geom_point(aes(y=E.logW), color="green") +
+    labs(x="Number of Clusters", y="Log W Values", title="Log W Curves")
+
+# Step 4: Plot the gap curve
+ggplot(gapDF, aes(x=1:nrow(gapDF))) +
+    geom_line(aes(y=gap), color="red") +
+    geom_point(aes(y=gap), color="red") +
+    geom_errorbar(aes(ymin=gap - SE.sim, ymax=gap + SE.sim), color="red") +
+    labs(x="Number of Clusters", y="Gap", title="Gap Curve")
+
+```
+
+
+```{r}
+data$Cluster = as.character(df_scaled$Cluster)
+```
+
+
+```{r}
+for (col1 in columns_to_normalize){
+  for (col2 in columns_to_normalize){
+    if (col1!=col2){
+      g <- draw_clusters(data,col1,col2)
+      print(g)
+    }
+  }
+}
+```
+
+
+```{r}
+for (col1 in columns_to_normalize){
+      g <- draw_clusters(data,col1,"txabs")
+      print(g)
+}
+```
+
+
+
