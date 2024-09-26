@@ -145,11 +145,19 @@ draw_correlation_heatmap <- function(data){
 }
 
 draw_scatterplot <- function(data,x_colname,y_colname){
-  graph <- ggplot(data,aes(x=data[,x_colname],y=data[,y_colname])) +
+  graph <- ggplot(data,aes_string(x=x_colname,y=y_colname))+
       xlab(x_colname) +
       ylab(y_colname) +
       geom_point() +
       geom_smooth(method=lm , color="red", se=TRUE)
     return(graph)
-  }
+}
+
+draw_clusters <- function(data,x_colname,y_colname){
+  graph <- ggplot(data,aes(x=data[,x_colname],y=data[,y_colname], color=Cluster)) +
+    xlab(x_colname) +
+    ylab(y_colname) +
+    geom_point()
+  return(graph)
+}
 

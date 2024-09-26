@@ -552,6 +552,7 @@ head(cor.mat[, 1:6])
 ```
 
 
+inertie inter/intraclasse.
 
 
 
