@@ -1,0 +1,168 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+# Importation des données de l'enquète 
+
+```{r}
+
+df <- read.csv("C:/Users/sadio/Desktop/demo_projet/data_abs.xlsx - data_abs.xls.csv")
+View(df)
+
+```
+
+```{r}
+
+install.packages("dplyr")
+library(dplyr)
+
+```
+
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+
+```
+
+```{r}
+
+head(df, 5)
+```
+
+```{r}
+# Structure des données
+str(df)
+```
+
+```{r}
+# Nombre respectif de lignes et de colonnes.
+nrow(df)
+ncol(df)
+```
+
+```{r}
+# Dimension du dataset
+dim(df)
+```
+
+```{r}
+# Nom des colonnes
+nom_colonne_df <- colnames(df)
+nom_colonne_df
+```
+
+```{r}
+# Résumé statistique
+summary(df)
+
+```
+```{r}
+# Vérification de valeurs manquantes par colonne
+
+colSums(is.na(df))
+```
+
+```{r}
+install.packages("ggplot2")
+library("ggplot2")
+```
+
+
+```{r}
+ggplot(df, aes(x = txabs)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+  labs(title = "Distribution de l'abstention", x = "Taux d'abstention", y = "Fréquence")
+
+
+```
+
+```{r}
+# Boxplot pour visualiser la dispersion
+ggplot(df, aes(y = txabs)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Dispersion du taux d'abstention", y = "Taux d'abstention")
+```
+
+```{r}
+install.packages("GGally")
+library("GGally")
+
+# Sélection des variables quantitatives à comparer
+quant_vars <- df %>%
+  dplyr::select(txabs, Ouvrier, Employe, Cadres, Artisant)
+
+# Matrice de scatter plots
+ggpairs(quant_vars, 
+        title = "Matrice de scatter plots entre taux d'abstention et les autres variables")
+
+
+```
+
+```{r}
+#Analyse univariée
+```
+
+
+```{r}
+# Distribution de l'abstention
+ggplot(df, aes(x = txabs)) +
+  geom_histogram(bins = 30, fill = "skyblue", color = "black") +
+  labs(title = "Distribution du taux d'abstention", x = "Taux d'abstention", y = "Fréquence")
+```
+
+```{r}
+# Boxplot pour visualiser la dispersion
+ggplot(df, aes(y = txabs)) +
+  geom_boxplot(fill = "lightgreen") +
+  labs(title = "Dispersion du taux d'abstention", y = "Taux d'abstention")
+```
+
+```{r}
+#Analyse bivariée
+
+```
+
+```{r}
+install.packages("gridExtra")
+library(gridExtra)
+```
+```{r}
+install.packages("dplyr", dependencies = TRUE)
+
+```
+
+
+
+```{r}
+
+
+# Extraire les variables quantitatives
+quantitative_vars <- df %>%
+  select(where(is.numeric))
+#View(quant_vars)
+
+# Afficher les premières lignes des variables quantitatives
+head(quantitative_vars)
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
