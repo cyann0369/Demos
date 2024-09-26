@@ -1,11 +1,20 @@
-library(readxl)
-library(reactable)
-
+# Train/test split
 library(caret)
-# library(htmltools)
-library(corrplot)
+
+# Compositional vars dimensionality reduction
 library(compositions)
 
+library(corrplot)
+
+# Better table graphics
+library(htmltools)
+library(reactable)
+
+library(readxl)
+
+#Data sciences libs
+library(dplyr)
+library(tidyverse)
 
 
 ###################################

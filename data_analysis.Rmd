@@ -7,32 +7,22 @@ output: html_notebook
 ## Imports
 
 ```{r}
-
-# Better table graphics
-library(reactable)
-library(htmltools)
-
-#global lib
-library(tidyverse)
-library(dplyr)
-
 # plot graphs
-library(ggplot2)
+#library(ggplot2)
 
-# package for compositional vars dimensionality reduction
-library(compositions)
 
-library(caret)  # For train/test split
-library(stats) # linear reg
+
+#library(caret)  # For train/test split
+#library(stats) # linear reg
 
 # package for correlation analysis.
-library('corrr')
+#library('corrr')
 
 # plot correlations
-library(ggcorrplot)
+#library(ggcorrplot)
 
 # Lib for Clustering
-library(cluster)
+#library(cluster)
 
 
 ```
@@ -185,10 +175,6 @@ X_train$Cluster <- kmeans_result$cluster
 ```
 
 ```{r}
-# Load necessary libraries
-library(cluster)   # For clusGap and PAM
-library(ggplot2)   # For data visualization
-
 # Step 1: Calculate the Gap Statistic
 theGap <- clusGap(X_train, FUNcluster = pam, K.max = k)
 
