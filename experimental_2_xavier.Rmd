@@ -283,5 +283,44 @@ for (col1 in columns_to_normalize){
 }
 ```
 
+```{r}
+library(Rtsne)
+subdf <- df_scaled[,-1]
+subdf <- subdf[-6]
+tsne_out <- Rtsne(subdf)
+
+fix_class <- function(x){
+  if (x<=12){
+    return("A")
+  }
+  else if (x<=20){
+    return("B")
+  }
+  return("C")
+}
+
+# Conversion of matrix to dataframe
+tsne_plot <- data.frame(x = tsne_out$Y[,1], 
+                        y = tsne_out$Y[,2],
+                        color = as.character(df_scaled$Cluster),
+                        info = sapply(data$HLM,fix_class))
+                        
+ 
+# Plotting the plot using ggplot() functionà
+set.seed(123)
+
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,color=color))
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y,color=info))
+
+```
+
+```{r}
+
+
+
+```
+
 
 
