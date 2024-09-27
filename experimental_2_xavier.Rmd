@@ -65,6 +65,46 @@ draw_scatterplot(data,"TxPauv","txcho")
 draw_scatterplot(data,"TxPauv","txabs")
 ```
 
+```{r}
+library(car)
+columns <- c("HLM","Salairemoy","TxPauv","NonDiplome","txcho","txabs")
+subdata <- data[columns]
+scatterplotMatrix(subdata, smooth = FALSE, cex=.2,pch=19,main="Pair plots", regLine = (list(method=lm, lwd=1,col="red")))
+```
+
+
+```{r}
+subdata
+# ensure the results are repeatable
+set.seed(7)
+# load the library
+library(mlbench)
+library(caret)
+# load the data
+# calculate correlation matrix
+correlationMatrix <- cor(subdata)
+# summarize the correlation matrix
+print(correlationMatrix)
+# find attributes that are highly corrected (ideally >0.75)
+highlyCorrelated <- findCorrelation(correlationMatrix, cutoff=0.5)
+# print indexes of highly correlated attributes
+print(highlyCorrelated)
+
+
+# ensure results are repeatable
+
+# load the dataset
+# prepare training scheme
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+# train the model
+model <- train(txabs~., data=subdata, method="lm", preProcess="scale", trControl=control)
+# estimate variable importance
+importance <- varImp(model, scale=FALSE)
+# summarize importance
+print(importance)
+# plot importance
+plot(importance)
+```
 
 
 ### Analyse Univariée
@@ -125,25 +165,33 @@ X_train
 colnames(train_data)
 
 ```
+```{r}
+subdata<-data[!rownames(data) %in% c("Corse-du-Sud","Haute-Corse","Moselle","Haute-Savoie"),]
+```
 
 
 ## Linear Regression
 
 ```{r}
 # Fit the linear regression model
-model <- lm(txabs ~ HLM + Salairemoy + TxPauv + NonDiplome + txcho, data = train_data)
-#model <- lm(txabs ~ HLM + Salairemoy + TxPauv, data = train_data)
-# model <- lm(txabs ~ ., data = train_data)
+#fit <- lm(txabs ~ HLM + Salairemoy + TxPauv + NonDiplome + txcho, data = df_scaled)
 
-# Summary of the model
-summary(model)
+fit <- lm(txabs ~ I(TxPauv^1) , data = subdata)
+
+summary(fit)
+par(mfrow=c(2,2))
+plot(fit,pch=20)
+library(car)
+#vif(fit)
+
+
 
 # Make predictions on the test set
-predictions <- predict(model, newdata = test_data)
+#predictions <- predict(fit, newdata = test_data)
 
 # Evaluate the model (e.g., using RMSE)
-rmse <- sqrt(mean((test_data$txabs - predictions)^2))
-cat("Root Mean Squared Error (RMSE):", rmse, "\n")
+#rmse <- sqrt(mean((test_data$txabs - predictions)^2))
+#cat("Root Mean Squared Error (RMSE):", rmse, "\n")
 ```
 ```{r}
 df_scaled[-1]
