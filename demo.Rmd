@@ -63,12 +63,19 @@ colSums(is.na(df))
 ```
 
 ```{r}
+print(sum(is.na(df)))
+
+```
+
+
+```{r}
 install.packages("ggplot2")
 library("ggplot2")
 ```
 
 
 ```{r}
+# Distribution de l'abstention
 ggplot(df, aes(x = txabs)) +
   geom_histogram(bins = 30, fill = "skyblue", color = "black") +
   labs(title = "Distribution de l'abstention", x = "Taux d'abstention", y = "Fréquence")
@@ -87,7 +94,7 @@ ggplot(df, aes(y = txabs)) +
 install.packages("GGally")
 library("GGally")
 
-# Sélection des variables quantitatives à comparer
+
 quant_vars <- df %>%
   dplyr::select(txabs, Ouvrier, Employe, Cadres, Artisant)
 
@@ -131,18 +138,118 @@ install.packages("dplyr", dependencies = TRUE)
 
 ```
 
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+
+
+ggplot(df, aes(x = TxPauv, y = txabs)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE, color = "red") +
+  labs(title = "Relation entre l'abstention et le taux de pauvreté",
+       x = "Variable explicative", y = "Taux d'abstention")
+
+```
+
+```{r}
+# Matrice de corrélation
+#correlation_matrix <- df %>%
+#  select(where(is.numeric)) %>%
+#  cor()
+
+# Visualisation de la matrice de corrélation 
+#library(corrplot)
+#corrplot(correlation_matrix, method = "circle")
+```
+
+```{r}
+install.packages("dplyr")
+library(dplyr)
+install.packages("ggplot2")
+```
+
+
+```{r}
+library(dplyr)
+abst_par_dept <- df %>%
+  group_by(Department) %>%
+  summarise(taux_moyen_abstention = mean(txabs), na.rm= TRUE) %>%
+  arrange(desc(taux_moyen_abstention))
+```
+
+
+```{r}
+library(ggplot2)
+abst_par_dept <- df %>%
+  top_n(10, mean(txabs)) %>%
+  ggplot(aes(x = reorder(Department, mean(txabs)), y = taux_moyen_abstention)) +
+  geom_bar(stat = "identity", fill = "orange") +
+  coord_flip() +
+  labs(title = "Top 10 des départements avec le plus haut taux d'abstention",
+```
+
+
+```{r}
+abst_par_dept1 <- df %>%
+  group_by(Department) %>%
+  summarise(taux_moyen_abstention = mean(txabs, na.rm = TRUE)) %>%
+  top_n(10, taux_moyen_abstention) %>%
+  arrange(desc(taux_moyen_abstention))
+
+#print(abst_par_dept1)
+
+p <- ggplot(abst_par_dept1, aes(x = reorder(Department, taux_moyen_abstention), 
+                               y = taux_moyen_abstention)) +
+  geom_col(fill = "orange") +
+  coord_flip() +
+  labs(title = "Top 10 des départements avec le plus haut taux d'abstention",
+       x = "Département", 
+       y = "Taux moyen d'abstention") +
+  theme_minimal() +
+  scale_y_continuous(labels = scales::percent_format(scale = 1))
+print(p)
+```
+
+```{r}
+# Réduction de dimension avec PCA
+```
+
+```{r}
+install.packages("FactoMineR")
+install.packages("factoextra")
+```
+
+```{r}
+library(FactoMineR)
+library(factoextra)
+
+data_pca <- PCA(df %>% select(where(is.numeric)), scale.unit = TRUE, ncp = 9)
+fviz_screeplot(data_pca, addlabels = TRUE, ylim = c(0, 50))
+fviz_pca_var(data_pca, col.var = "contrib")
+fviz_cos2(data_pca, choice = "var", axes = 1:2)
+```
+
+
+
+
+
+
+
+
 
 
 ```{r}
 
 
 # Extraire les variables quantitatives
-quantitative_vars <- df %>%
-  select(where(is.numeric))
+#quantitative_vars <- df %>%
+#  select(where(is.numeric))
 #View(quant_vars)
 
 # Afficher les premières lignes des variables quantitatives
-head(quantitative_vars)
+#head(quantitative_vars)
+
+#target <- txabs
 
 
 ```
