@@ -319,8 +319,93 @@ ggplot(tsne_plot) +
 ```{r}
 
 
+# Library
+library(fmsb)
+ 
+# Create data: note in High school for several students
+#set.seed(99)
+data <- as.data.frame(matrix( sample( 0:20 , 15 , replace=F) , ncol=5))
+colnames(data) <- c("math" , "english" , "biology" , "music" , "R-coding" )
+rownames(data) <- paste("mister" , letters[1:3] , sep="-")
+ 
+# To use the fmsb package, I have to add 2 lines to the dataframe: the max and min of each variable to show on the plot!
+data <- rbind(rep(20,5) , rep(0,5) , data)
+ 
+# plot with default options:
+radarchart(data)
+data
+
+kmeans_df <- rbind(min=apply(kmeans_df,2,min),
+                   max=apply(kmeans_df,2,max),
+                   kmeans_result$centers
+                   )
+
+kmeans_df <- data.frame(kmeans_df)
+kmeans_df
+colors_border=c( rgb(0.2,0.5,0.5,0.9), 
+                 rgb(0.8,0.2,0.5,0.9), 
+                 rgb(0.7,0.5,0.1,0.9) 
+                 )
+colors_in=c( rgb(0.2,0.5,0.5,0.4), 
+             rgb(0.8,0.2,0.5,0.4) , 
+             rgb(0.7,0.5,0.1,0.4) )
+
+
+radarchart(kmeans_df, 
+           title="Position des centroïdes",
+           pcol=colors_border,
+           pfcol=colors_in)
+legend(x=2, y=1, legend = rownames(kmeans_df[-c(1,2),]), bty = "n", pch=20 , col=colors_in , text.col = "grey", cex=1.2, pt.cex=3)
 
 ```
 
 
+```{r fwidth=6, fig.height=12}
+d.subdf <- dist(subdf)
+cah.ward <- hclust(d.subdf,method="ward.D2")
+plot(cah.ward)
+rect.hclust(cah.ward,k=3)
+```
+```{r fwidth=6, fig.height=12}
+plot(cah.ward)
+rect.hclust(cah.ward,k=3)
+groupes.cah <- cutree(cah.ward,k=3)
+groupes.cah
+```
+
+
+```{r}
+library(cluster)
+
+silhouette_score_mean <- function(k){
+  km <- kmeans(subdf, centers = k, nstart=25)
+  ss <- silhouette(km$cluster, dist(subdf))
+  mean(ss[, 3])
+}
+
+k <- 2:10
+avg_sil <- sapply(k,silhouette_score_mean)
+plot(k, type='b', avg_sil, xlab='Number of clusters', ylab='Average Silhouette Scores', frame=FALSE)
+
+```
+
+```{r}
+library(factoextra)
+fviz_nbclust(subdf, kmeans, method='silhouette')
+```
+
+```{r}
+my_silhouette_score <- function(k){
+  km <- kmeans(subdf, centers = k, nstart=25)
+  ss <- silhouette(km$cluster, dist(subdf))
+  ss
+}
+
+#k <- 2:10n
+for (k in 2:10){
+  sil <- my_silhouette_score(k)
+  plot(fviz_silhouette(sil))
+}
+
+```
 

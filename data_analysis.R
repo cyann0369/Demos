@@ -24,9 +24,10 @@ library(tidyverse)
 load_data <- function(file_path){
   data <- read_excel(file_path)
   data <- data %>% remove_rownames %>% column_to_rownames(var="Department")
-  return(data[,-c(1:2)])
+  data$Code <- gsub("\\.0","",data$Code)
+  data$Code <- gsub("^([0-9])$","0\\1",data$Code)
+  return(data[,-1])
 }
-
 
 
 logratio_transform <- function(df, cols_to_transform, variant) {
