@@ -31,6 +31,10 @@ library(stats)
 library(cluster)
 library(dbscan)
 library(Rtsne)
+library(ggrepel)
+library(dbscan)
+library(FNN)
+
 ```
 
 Certains packages utilisés pour ce projet contiennent des fonctions qui ont le même nom, ce qui cause des conflits lors du chargement. Pour y remédier, nous installons le package **"conflicted"** qui permet de faire un choix des fonctions à utiliser.
@@ -363,142 +367,59 @@ print(var_loads)
 ## 8.3. Choix des axes principaux et des variables à conserver
 
 ```{r}
-eig.val <- get_eigenvalue(pca_result)
-eig.val
+eig_values <- get_eigenvalue(pca_result)
 
-var <- get_pca_var(pca_result)
-var$contrib
-var$cos2
+plot(eig_values[,3],type = "b", col = "blue",
+     xlab = "Nombre de Composantes", ylab = "Variance Cumulée (%)",
+     main = "Pourcentage Cumulé de Variance Expliquée")
+axis(1, at = seq(1, nrow(eig_values), by = 1))
 
-fviz_eig(pca_result)
+bar_pos <- barplot(eig_values[,3],
+        names.arg = rep("", nrow(eig_values)),  # Supprime les noms par défaut
+        col = "blue",
+        xlab = "Nombre de Composantes",
+        ylab = "Variance Cumulée (%)",
+        main = "Pourcentage Cumulé de Variance Expliquée")
+axis(1, at = bar_pos, labels = 1:nrow(eig_values))
+text(x = bar_pos, 
+     y = eig_values[,3],   # Position des textes : au-dessus des barres
+     labels = round(eig_values[,3], 1),  # Texte arrondi à 1 décimale
+     pos = 1,   # Position au-dessus de la barre (3 = au-dessus)
+     cex = 0.8, # Taille du texte
+     col = "white")  # Couleur du texte
 ```
-
 ```{r}
-# Contributions des variables aux axes 1 et 2
-fviz_contrib(pca_result, choice = "var", axes = 1, top = 10)
-fviz_contrib(pca_result, choice = "var", axes = 2, top = 10)
+df_pca <- pca_result$ind$coord
 ```
 
-Variables choisies: V3, V2, Salairemoy, NonDiplome, TxPauv, txcho, V1
 
-```{r}
-
-contrib <- pca_result$var$contrib[, 1:2]
-print(contrib)
-
-# Contribution moyenne
-
-nb_var <- nrow(contrib)
-contrib_moyenne <- 100 / nb_var
-
-# Sélection des variables contribuant plus que la moyenne sur l'un des axes choisis
-var_choisies <- apply(contrib, 1, function(x) any(x > contrib_moyenne))
-
-# Liste des variables pertinentes
-var_choisies <- names(var_choisies[var_choisies == TRUE])
-
-# Afficher les variables pertinentes
-print(var_choisies)
-
-```
-
-# 9. Régressions
-
-## 9.1. Régression avec les variables sélectionnées après l'analyse factorielle (sur la base des contributions)
-
-```{r}
-
-modele_lm <- lm(txabs ~ Salairemoy + TxPauv + NonDiplome + txcho + V1 + V2 + V3, df_stand_tmp)
-
-tidy(modele_lm)
-
-```
-
-```{r}
-par(mfrow = c(2, 2))
-plot(modele_lm)
-```
-
-## 9.2. Régression sur les composantes principales
-
-```{r}
-variables_choisies <- c("TxPauv", "Salairemoy", "NonDiplome", "txcho", "V1", "V2", "V3")
-
-# Réaliser la régression PCR avec Salairemoy comme variable dépendante
-modele_pcr <- pcr(txabs ~ Salairemoy  + TxPauv + NonDiplome + txcho + V1 + V2 + V3, 
-                  data = df_stand_tmp, scale = TRUE, ncomp = 2)
-
-
-summary(modele_pcr)
-coef(modele_pcr, ncomp = 2)
-
-
-predictions <- predict(modele_pcr, ncomp = 2)
-```
-
-## 9.3. Régression locale (linéaire et quadratique)
-
-```{r}
-# Régression locale linéaire
-modele_loess_lin <- loess(txabs ~ Salairemoy  + TxPauv + NonDiplome + txcho, #+ V1 + V2 + V3,# 
-                          data = df_stand, degree = 1, span = 0.75)
-
-# Prédiction avec le modèle linéaire local
-pred_lin <- predict(modele_loess_lin)
-
-# Afficher un résumé du modèle
-summary(modele_loess_lin)
-
-# Visualiser la régression locale linéaire
-plot(df$txabs, pred_lin, xlab = "Observations", ylab = "txabs prédit", main = "Régression Locale Linéaire")
-lines(df$txabs, pred_lin, col = "blue")
-
-```
-
-```{r}
-# Régression locale quadratique
-modele_loess_quad <- loess(txabs ~ Salairemoy  + TxPauv + NonDiplome + txcho, #+ V1 + V2 + V3,# 
-                           data = df_stand, degree = 2, span = 0.75)
-
-# Prédiction avec le modèle quadratique local
-pred_quad <- predict(modele_loess_quad)
-
-# Afficher un résumé du modèle
-summary(modele_loess_quad)
-
-# Visualiser la régression locale quadratique
-plot(df$txabs, pred_quad, xlab = "Observations", ylab = "txabs prédit", main = "Régression Locale Quadratique")
-lines(df$txabs, pred_quad, col = "red")
-```
-
-```{r}
-
-plot(df$txabs, pred_lin, type = "l", col = "blue", xlab = "Observations", ylab = "txabs prédit", main = "Comparaison des régressions LOESS ")
-lines(df$txabs, pred_quad, col = "red")
-legend("topright", legend = c("Linéaire", "Quadratique"), col = c("blue", "red"), lty = 1)
-
-```
-
-## 9.4. Régression par spline adaptive
-
-## 9.5. General Additive Models
 
 # 10. Clusters
 ```{r}
-draw_plot_tsne <- function(df_cluster){
+
+draw_plot_tsne_virgin <- function(){
+  set.seed(123)
   tsne_out <- Rtsne(df_stand)
-  if (df_cluster == "none"){#
     tsne_plot <- data.frame(x = tsne_out$Y[,1], 
                             y = tsne_out$Y[,2])
-  }
-  else{
-    tsne_plot <- data.frame(x = tsne_out$Y[,1], 
-                            y = tsne_out$Y[,2],
-                            col = as.character(df_cluster))
-  }
   plot(tsne_plot)
 }
-draw_plot_tsne("none")
+draw_plot_tsne <- function(cluster_points){
+  set.seed(123)
+  clusters <- as.character(cluster_points)
+  tsne_out <- Rtsne(df_stand)
+  tsne_plot <- data.frame(x = tsne_out$Y[,1], 
+                          y = tsne_out$Y[,2]
+                         )
+  ggplot(tsne_plot, aes(x = x , y = y, color = clusters)) +
+  geom_point(size = 3) +  # Afficher les points
+  geom_text_repel(aes(label = df$Code),  # Éviter le chevauchement des labels
+                  box.padding = 0.35,   # Espace autour du label
+                  point.padding = 0.5,  # Espace autour du point
+                  max.overlaps = Inf) +
+  labs(title = "t-SNE avec labels")
+}
+draw_plot_tsne_virgin()
 ```
 
 
@@ -506,7 +427,7 @@ draw_plot_tsne("none")
 
 ```{r}
 km_silhouette_score_mean <- function(k){
-  km <- kmeans(df_stand, centers = k, nstart=25)
+  km <- kmeans(df_pca, centers = k, nstart=25)
   ss <- silhouette(km$cluster, stats::dist(df_stand))
   mean(ss[, 3])
 }
@@ -519,12 +440,12 @@ plot(k, type='b', avg_sil,
      frame=FALSE)
 ```
 ```{r}
-fviz_nbclust(df_stand, kmeans, method='silhouette')
+fviz_nbclust(df_pca, kmeans, method='silhouette')
 ```
 
 ```{r}
 km_silhouette_score <- function(k){
-  km <- kmeans(df_stand, centers = k, nstart=25)
+  km <- kmeans(df_pca, centers = k, nstart=25)
   ss <- silhouette(km$cluster, stats::dist(df_stand))
   ss
 }
@@ -535,20 +456,67 @@ for (k in 2:10){
 }
 
 ```
+
 ```{r}
-km <- kmeans(df_stand, centers = 4, nstart=25)
-clusters = as.character(km$cluster)
-ggplot(tsne_plot, aes(x = , y = y, color = clusters)) +
-  geom_point(size = 3) +  # Afficher les points
-  geom_text(aes(label = df$Code), vjust = -1, size = 3) +  # Ajouter les labels
-  labs(title = "t-SNE avec labels")
+km <- kmeans(df_pca, centers = 3, nstart=25)
+draw_plot_tsne(km$cluster)
+
 ```
+
+```{r}
+km <- kmeans(df_pca, centers = 5, nstart=25)
+draw_plot_tsne(km$cluster)
+
+```
+
+
+
+```{r}
+
+draw_boxplot_per_class <- function(df,cluster_points,varname){
+  agg_df <- df
+  agg_df$cluster <- cluster_points
+  x_labels <- sort(unique(agg_df$cluster))
+  ggplot(agg_df, aes_string(x="cluster", y=varname,group="cluster")) +
+    geom_boxplot(fill = "lightblue", outlier.colour = "red")+
+    geom_point(aes_string(x = "cluster", y = varname),col = "red", alpha = 0.2)+
+    scale_x_discrete("Cluster",limits = factor(c(x_labels)))+
+    ggtitle(paste("Boxplot par cluster pour la variable",varname))
+}
+for (column in colnames(df[,-c(1,2)])){
+    plot(draw_boxplot_per_class(df,km$cluster,column))
+}
+```
+
 
 ## 10.2. CAH
 
 ```{r}
-df_stand.dist <- stats::dist(df_stand_tmp)
-cah.ward <- hclust(df_stand.dist,method="ward.D2")
+df_pca.dist <- stats::dist(df_pca)
+cah.ward <- hclust(df_pca.dist,method="ward.D2")
+```
+
+```{r}
+cah_silhouette_score_mean <- function(k){
+  clusters <- cutree(cah.ward, k = k)
+  ss <- silhouette(clusters, df_stand.dist)
+  mean(ss[, 3])
+}
+
+k <- 2:10
+avg_sil <- base::sapply(k,cah_silhouette_score_mean)
+plot(k, type='b', avg_sil,
+     xlab='Nombre de clusters', 
+     ylab='Score Silhouette Moyen', 
+     frame=FALSE)
+```
+
+```{r}
+fviz_nbclust(df_pca, FUN=hcut, method='silhouette')
+```
+
+
+```{r}
 for (k in 2:10){
   clusters <- cutree(cah.ward, k = k)
   sil <- silhouette(clusters, df_stand.dist)
@@ -558,14 +526,32 @@ for (k in 2:10){
 
 ```{r fwidth=6, fig.height=12}
 plot(cah.ward)
-rect.hclust(cah.ward,k=4)
+rect.hclust(cah.ward,k=6)
 ```
+
+```{r fwidth=6, fig.height=12}
+plot(cah.ward)
+rect.hclust(cah.ward,k=5)
+```
+
+```{r}
+clusters <- cutree(cah.ward, k = 4)
+draw_plot_tsne(clusters)
+```
+
+```{r}
+for (column in colnames(df[,-c(1,2)])){
+    plot(draw_boxplot_per_class(df,clusters,column))
+}
+```
+
+
 
 ## 10.3 DBScan
 
 ```{r}
 #sub_df_scaled <- df_scaled[,-c(1,7)]
-nearest_neighbors <- get.knn(df_stand, k = 2)
+nearest_neighbors <- get.knn(df_pca, k = 2)
 nearest_neighbor_distances <- nearest_neighbors$nn.dist[, 2]
 nearest_neighbor_distances <- sort(nearest_neighbor_distances)
 nnd_df <- data.frame(nearest_neighbor_distances=nearest_neighbor_distances)
@@ -578,35 +564,23 @@ ggplot(nnd_df, aes(x = 1:nrow(nnd_df), y = nearest_neighbor_distances)) +
 
 
 ```{r}
-dbs <- dbscan(df_stand,eps=1)
-clusters <- as.character(dbs$cluster)
+dbs <- dbscan(df_pca,eps=2)
 sil <- silhouette(dbs$cluster, df_stand.dist)
 plot(fviz_silhouette(sil))
-ggplot(tsne_plot) + 
-  geom_point(aes(x=x,y=y, color=clusters))+
-  labs(title = "DBSCAN Clustering with Epsilon = 1",
-       x = "X", y = "Y")
+draw_plot_tsne(dbs$cluster)
 ```
 
 ```{r}
-dbs <- dbscan(df_stand,eps=1.5)
-clusters <- as.character(dbs$cluster)
+dbs <- dbscan(df_pca,eps=2)
 sil <- silhouette(dbs$cluster, df_stand.dist)
 plot(fviz_silhouette(sil))
-ggplot(tsne_plot) + 
-  geom_point(aes(x=x,y=y, color=clusters))+
-  labs(title = "DBSCAN Clustering with Epsilon = 1.5",
-       x = "X", y = "Y")
+draw_plot_tsne(dbs$cluster)
 ```
 
 ```{r}
-dbs <- dbscan(df_stand,eps=2)
-clusters <- as.character(dbs$cluster)
+dbs <- dbscan(df_pca,eps=2.5)
 sil <- silhouette(dbs$cluster, df_stand.dist)
 plot(fviz_silhouette(sil))
-ggplot(tsne_plot) + 
-  geom_point(aes(x=x,y=y, color=clusters))+
-  labs(title = "DBSCAN Clustering with Epsilon = 2",
-       x = "X", y = "Y")
+draw_plot_tsne(dbs$cluster)
 ```
 
