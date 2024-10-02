@@ -1,0 +1,10 @@
+*.html
+*main_r_file*
+.RData
+*.Rproj*
+demos
+.Rhistory
+*.knit.md
+tp_pcr.*
+*_files
+.Rproj.user
