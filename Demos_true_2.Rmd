@@ -1,0 +1,612 @@
+# Projet 2: Dèmos, Identification des les facteurs socio-économiques influençant l'abstention électorale en France à l'aide de R.
+
+######################################################### 
+
+# 1. Chargement des librairies
+
+```{r}
+
+#devtools::install_github("r-lib/conflicted", force = TRUE)
+library(conflicted)
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(lattice)
+library(psych)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+library(ggrain)
+library(corrr)
+library(ggcorrplot)
+library(corrplot)
+library(compositions)
+library(FactoMineR)
+library(factoextra)
+library(broom)
+library(pls)
+library(splines)
+library(caret)
+library(stats)
+library(cluster)
+library(dbscan)
+library(Rtsne)
+```
+
+Certains packages utilisés pour ce projet contiennent des fonctions qui ont le même nom, ce qui cause des conflits lors du chargement. Pour y remédier, nous installons le package **"conflicted"** qui permet de faire un choix des fonctions à utiliser.
+
+# 2. Chargement des données
+
+```{r}
+#detach(df)
+df <- read_excel("data/data_abs.xlsx")
+#Modification de la variable Code
+df$Code <- gsub("\\.0","",df$Code)
+df$Code <- gsub("^([0-9])$","0\\1",df$Code)
+attach(df)
+```
+
+Nous utilisons la fonction ***attach*** pour rendre accessible les objets du dataframe sans avoir à utiliser à chaque fois le nom du dataframe. Exemple: *mean(df\$txabs)* permet d'afficher le taux d'abstention moyen; en utilisant préalablement ***attach***, on peut directement écrire *mean(txabs)*.
+
+R a attribué le nom "...1" à la colonne contenant les numéros d'ordre des départements, car cette colonne était sans nom dans le fichier original. Nous supprimerons cette colonne dans la suite, car elle n'apporte aucune information, les départements ayant déjà des codes.
+
+# 3. Structure des données
+
+Nous présentons ici une vue globale des données, comprenant:
+
+-   la dimension du dataframe (96 lignes, 14 colonnes)
+
+-   le type de données dans chaque colonne.
+
+```{r}
+
+dim(df)
+
+df$...1 <- NULL  #suppression de la colonne ...1 créée automatiquement pendant l'importation des données
+
+
+str(df)    #ou
+glimpse(df)
+
+
+```
+
+Nous définissons ici la colonne **Department** comme l'index du dataframe.
+
+```{r}
+df %>%
+     remove_rownames() %>%
+     column_to_rownames(var = 'Department')
+```
+
+# 4. Recherche de données manquantes et valeurs uniques pour les départements et leurs codes
+
+Nous vérifions la présence de données manquantes en appliquant aux colonnes du dataframe, une fonction qui calcule la somme des valeurs manquantes (NA). Ensuite, nous vérifions la présence de doublons au niveau des départements (et de leurs codes),en affichant les valeurs uniques pour ces deux colonnes.
+
+```{r}
+na_per_column <- sapply(df, function(x) sum(is.na(x)))
+print(na_per_column)
+
+set_col <- c("Department", "Code")
+unique_values <- lapply(df[set_col], unique)
+print(unique_values)
+```
+
+Pas de valeurs manquantes, ni de doublons dans la base de données.
+
+# 5. Analyse univariée
+
+## 5.1. Statistiques descriptives
+
+Nous présentons quelques statistiques descriptives des colonnes du dataframe (min, max, moyenn, quartiles, etc).
+
+```{r}
+
+summary(df)
+```
+
+Les distributions des différentes variables au sein des départements semblent être équilibrées, car les médianes sont très proches des moyennes pour l'ensemble des variables. En particulier, les proportions médiane moyenne de professions intermédiaires (**PI**) sont toutes deux égales à 24,8%; pour les autres variables (sauf **Cadres**), l'écart entre les deux indicateurs de tendance centrale est inférieur à 1 point de pourcentage (pp). La proportion de cadres se distingue avec une moyenne supérieure à la médiane d'environs 2 pp, donnant une intuition sur la présence de données aberrantes (potentiellement des départements avec beaucoup plus de cadres que d'autres). En moyenne, le taux d'abstention est très proche des 20%, signifiant qu'une personne sur cinq ne vote pas. Les représentations graphiques suivantes permettront de mieux appréhender ces statistiques.
+
+## 5.2 Représentations graphiques
+
+```{r}
+# Fonction pour Boxplot et Histogramme avec courbe de densité
+
+graphiques_uni <- function(data, variable) {
+  
+  boxplot <- ggplot(data, aes_string(x = "1", y = variable)) +
+    geom_boxplot(outlier.colour = "red", outlier.size = 2) +
+    stat_summary(fun = mean, geom = "point", shape = 16, size = 2, color = "blue", fill = "blue") +
+    labs(title = paste("Boxplot de la variable", variable), y = variable) +
+    theme_minimal() +
+    theme(axis.title.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
+  
+  histogram <- ggplot(data, aes_string(x = variable)) +
+    geom_histogram(aes(y = ..density..), fill = "lightyellow", color = "black", alpha = 0.7) +
+    geom_density(color = "blue", size = 1) +
+    labs(title = paste("Histogramme de la variable", variable), y = "Densité") +
+    theme_minimal()
+  
+  
+  grid.arrange(boxplot, histogram, ncol = 2)
+}
+
+# Fonction appliquant <<graphiques_uni>> à toutes les colonnes numériques du dataframe
+
+graphiques_uni_all <- function(data) {
+  numeric_columns <- names(data)[sapply(data, is.numeric)]
+  
+  for (variable in numeric_columns) {
+    graphiques_uni(data, variable)
+  }
+}
+
+# Example usage with a dataframe `df`
+graphiques_uni_all(df)
+```
+
+Pour chaque variable, nous présentons un boxplot et un histogramme, pour mieux visualiser les distributions. L'objectif est de décrire les variables en terme d'asymétrie et d'identifier de potentielles valeurs aberrantes.
+
+En général, les distributions des catégories socio-professionnelles sont asymétriques, avec pour certaines des valeurs aberrantes. Seul le pourcentage d'employés semble être symétriquement distribué dans l'ensemble des départements, avec cependant une valeur particulièrement faible de 20,5% en Hauts-de-Seine.
+
+La part d'individus vivant en HLM présente une distribution asymétrique vers la gauche, avec la majorité des départements affichant une valeur entre 5% et 20%. Les départements de Seine-Saint-Denis et Val-de-Marne se distinguent avec les plus grandes proportions de personnes vivant en HLM (respectivement 32,4% et 27,4%).
+
+Le salaire horaire net moyen est particulièrement élevé dans les départements de Paris, Hauts-de-Seine, et Yvelines, entre 20 et 23 euros, alors qu'il est compris entre 11 et 16 euros pour la majorité des départements. Les emplois au nord de la France semble être beaucoup mieux payés que dans le reste de la France. La tendance asymétrique vers la gauche est la même en ce qui concerne le taux de pauvreté, particulièrement faible en Haute-Savoie, Yvelines et Vendée, qui se distinguent avec des valeurs autour de 10%, alors que des départements comme Seine-Saint-Denis, Haute-Corse et Aude présentent des taux de pauvreté deux fois voire trois fois plus élevés (entre 20% et 30%).
+
+La distribution du pourcentage de personnes non diplômées est assez symétrique par rapport à celles des autres variables: pour la majorité des départements, on compte entre 30% et 35% de personnes non diplômées, avec des valeurs particulièrement faibles dans les départements de Paris et Hauts-de-Seine. Le taux de chômage est compris entre 7% et 10% dans la majorité des départements, même si les Pyrénées-Orientales se distinguent avec un taux autour de 15%.
+
+Quant au taux d'abstention, la plupart des départements présentent des valeurs autour de 20%; la distribution est asymétrique, avec une concentration de départements avec des taux d'abstention entre 16% et 23%; des taux exceptionnellement élevés (entre 27% et 33%) sont observés dans les départements de Seine-Saint-Denis, Corse-du Sud, et Haute-Corse.
+
+# 6. Analyse bivariée
+
+Nous étudions les variables par paire pour ressortir de potentielles liaisons entre elles. Une matrice de corrélation est calculée avec l'ensemble des variables, et ensuite, nous montrons à travers des nuages de points, la relation entre chacune des variables explicatives et le taux d'abstention
+
+## 6.1. Matrice de corrélation
+
+```{r}
+
+# Matrice de corrélation
+
+matrix_corr <- function(data) {
+  numeric_data <- data[sapply(data, is.numeric)]
+  graph <- corrplot::corrplot(stats::cor(numeric_data), 
+                              type="upper",
+                              tl.col="black",
+                              order= "AOE",
+                              col = colorRampPalette(c("red", "blue"))(10),
+                              tl.srt=45)
+  return(graph)
+}
+
+
+#conflicted::conflicts_prefer(stats::cor)
+matrix_corr(df)
+
+```
+
+Le taux d'absention est positivement corrélé au taux de pauvreté, au taux de chômage, et au pourcentage de personnes non diplômés: cela suggère que les les départements les plus défavorisés en termes d'emploi, de pouvoir de marché et d'éducation sont plus susceptibles d'enregistrer de forts taux d'abstention. Il y a également une légère tendance des personnes vivants en HLM à l'abstention au vote, la corrélation entre ces deux variables étant positive, mais moins forte que les précédentes. Pour les autres catégories socio-professionnelles, seules les parts d'ouvriers et d'agriculteurs semblent être liées au taux d'abstention, avec de très faibles corrélations négatives; la relation entre les autres catégories et le taux est soit inexistante, soit négative mais très faible. C'est également le cas du salaire moyen, ce qui peut signifier que le salaire n'entre pas en jeu dans le choix des individus d'aller voter.
+
+## 6.2. Nuage de points et droite de régression (variables explicatives vs taux d'abstention)
+
+```{r}
+
+graphiques_biv <- function(data, var_interet) {
+  
+  numeric_columns <- setdiff(names(data)[sapply(data, is.numeric)], var_interet)
+  
+  for (variable in numeric_columns) {
+    
+    plot <- ggplot(data, aes_string(x = variable, y = var_interet)) +
+      geom_point(alpha = 0.6, color = "black") + 
+      geom_smooth(method = "lm", color = "red", se = FALSE) +
+      geom_smooth(method = "loess", color = "blue", se = FALSE) +
+      labs(title = paste(variable, "X", var_interet), 
+           x = variable, y = var_interet) +
+      theme_minimal()
+    
+    print(plot)
+  }
+}
+
+graphiques_biv(df, "txabs")
+```
+
+Nous avons représenté les relations entre les variables explicatives et le taux d'abstention par des nuages de points, des droites de régression linéaire en jaune et des courbes LOESS (LOcally Estimated Scatterplot Smoothing) en vert. L'idée est de rechercher la meilleure représentation des relations étudiées (linéaire ou non), en comparant les deux courbes.
+
+La droite de régression confirme pour chacune des variables, le sens et l'intensité de la relation trouvée après la matrice de corrélation. Cependant, les relations sont loin d'être linéaires pour la plupart des variables; en effet, la courbe LOESS se distingue clairement de la droite de régression, surtout aux extrémités des nuages de points (exemples: employe, HLM). La présence de points d'inflexions (montées et de descentes) au niveau des courbes LOESS suggère qu'un modèle linéaire pourrait ne pas expliquer de manière performante les relations entre les variables explicatives et le taux d'abstention.
+
+# 7. Traitement spécifique des données compositionnelles
+
+## 7.1. Transformation des données compositionnelles
+
+```{r}
+# Séparation des variables explicatives (en compositionnelles et non compositionnelles)
+
+df_comp <- df[, c("Ouvrier", "Employe", "PI", "Cadres","Artisant", "Agri")]
+class(df_comp)
+
+df_noncomp <- df[, c("HLM", "Salairemoy", "TxPauv", "NonDiplome","txcho")]
+class(df_noncomp)
+```
+
+```{r}
+# Transformation Log-Ratio Isométrique (ILR) des données compositionnelles
+
+comp_ilr <- ilr(df_comp)
+head(comp_ilr, 5)
+```
+
+```{r}
+# Nouveau dataframe df2: variables explicatives non compositionnelles et variables explicatives compositionnelles transformées
+
+df_comp_ilr <- as.data.frame.acomp(comp_ilr)
+
+df2 <- cbind.data.frame(df_noncomp, df_comp_ilr)
+
+head(df2, 5)
+```
+
+## 7.2. Statistiques descriptives des données compositionnelles transformées
+
+```{r}
+
+csp_comp = acomp(df, parts=c("Ouvrier", "Employe", "PI", "Cadres","Artisant", "Agri"))
+class(csp_comp)
+head(csp_comp, 5)
+```
+
+```{r}
+#csp_comp = acomp(csp_comp)
+
+all_stats <- summary(csp_comp)
+all_stats$mean.ratio
+all_stats$variation
+all_stats$missingness
+```
+
+```{r}
+# Moyenne compositionnelle
+
+csp_comp = acomp(csp_comp)
+mean(csp_comp)
+head(csp_comp, 5)
+```
+
+```{r}
+# Variance métrique et Ecart-type
+
+metric_var <- mvar(csp_comp)
+metric_sd <- sqrt((1/5)*metric_var)
+
+metric_var
+metric_sd
+```
+
+```{r}
+# Matrix de variation: mesure de la codépendance des catégories socio-professionnelles
+
+delta_matrix <- variation(csp_comp)
+delta_matrix
+
+
+c <- exp(-0.5*(delta_matrix)^2)
+
+```
+
+```{r}
+# Boxplots
+
+
+```
+
+```{r}
+# Diagrammes ternaires et dendogrammes
+```
+
+# 8. Réduction de dimension
+
+## 8.1. Standardisation des variables
+
+```{r}
+# Standardisation des variables non compositionnelles
+
+df_noncomp_stand <- as.data.frame(scale(df_noncomp))
+
+df_stand <- cbind(df_noncomp_stand, df_comp_ilr )
+
+# Les variables compositionnelles ont déjà subi une standardisation via la transformation log-ratio isométrique.
+```
+
+## 8.2. Analyse factorielle: Composantes Principales
+
+```{r}
+# Analyse factorielle
+df_stand_tmp <- df_stand
+rownames(df_stand_tmp) <- df$Code
+
+pca_result <- PCA(df_stand_tmp,scale.unit = TRUE, graph = TRUE )
+pca_result$var
+fviz_pca_ind(pca_result, col.ind = "contrib", 
+             gradient.cols = c("red", "blue"),
+             repel = TRUE
+            )
+
+fviz_pca_ind(pca_result, col.ind = "cos2", 
+             gradient.cols = c("red", "blue"),
+             repel = TRUE 
+            )
+#Premier plan factoriel
+fviz_pca_var(pca_result, col.var = "contrib",
+             gradient.cols = c("red", "blue"),
+             repel = TRUE 
+            )
+#Deuxième plan factoriel
+fviz_pca_var(pca_result, col.var = "contrib",
+             axes = c(2,3),
+             gradient.cols = c("red", "blue"),
+             repel = TRUE 
+            )
+#Troisième plan factoriel
+fviz_pca_var(pca_result, col.var = "contrib",
+             axes = c(3,4),
+             gradient.cols = c("red", "blue"),
+             repel = TRUE 
+            )
+# Loadings des variables
+
+var_loads <- pca_result$rotation
+print(var_loads)
+```
+
+## 8.3. Choix des axes principaux et des variables à conserver
+
+```{r}
+eig.val <- get_eigenvalue(pca_result)
+eig.val
+
+var <- get_pca_var(pca_result)
+var$contrib
+var$cos2
+
+fviz_eig(pca_result)
+```
+
+```{r}
+# Contributions des variables aux axes 1 et 2
+fviz_contrib(pca_result, choice = "var", axes = 1, top = 10)
+fviz_contrib(pca_result, choice = "var", axes = 2, top = 10)
+```
+
+Variables choisies: V3, V2, Salairemoy, NonDiplome, TxPauv, txcho, V1
+
+```{r}
+
+contrib <- pca_result$var$contrib[, 1:2]
+print(contrib)
+
+# Contribution moyenne
+
+nb_var <- nrow(contrib)
+contrib_moyenne <- 100 / nb_var
+
+# Sélection des variables contribuant plus que la moyenne sur l'un des axes choisis
+var_choisies <- apply(contrib, 1, function(x) any(x > contrib_moyenne))
+
+# Liste des variables pertinentes
+var_choisies <- names(var_choisies[var_choisies == TRUE])
+
+# Afficher les variables pertinentes
+print(var_choisies)
+
+```
+
+# 9. Régressions
+
+## 9.1. Régression avec les variables sélectionnées après l'analyse factorielle (sur la base des contributions)
+
+```{r}
+
+modele_lm <- lm(txabs ~ Salairemoy + TxPauv + NonDiplome + txcho + V1 + V2 + V3, df_stand_tmp)
+
+tidy(modele_lm)
+
+```
+
+```{r}
+par(mfrow = c(2, 2))
+plot(modele_lm)
+```
+
+## 9.2. Régression sur les composantes principales
+
+```{r}
+variables_choisies <- c("TxPauv", "Salairemoy", "NonDiplome", "txcho", "V1", "V2", "V3")
+
+# Réaliser la régression PCR avec Salairemoy comme variable dépendante
+modele_pcr <- pcr(txabs ~ Salairemoy  + TxPauv + NonDiplome + txcho + V1 + V2 + V3, 
+                  data = df_stand_tmp, scale = TRUE, ncomp = 2)
+
+
+summary(modele_pcr)
+coef(modele_pcr, ncomp = 2)
+
+
+predictions <- predict(modele_pcr, ncomp = 2)
+```
+
+## 9.3. Régression locale (linéaire et quadratique)
+
+```{r}
+# Régression locale linéaire
+modele_loess_lin <- loess(txabs ~ Salairemoy  + TxPauv + NonDiplome + txcho, #+ V1 + V2 + V3,# 
+                          data = df_stand, degree = 1, span = 0.75)
+
+# Prédiction avec le modèle linéaire local
+pred_lin <- predict(modele_loess_lin)
+
+# Afficher un résumé du modèle
+summary(modele_loess_lin)
+
+# Visualiser la régression locale linéaire
+plot(df$txabs, pred_lin, xlab = "Observations", ylab = "txabs prédit", main = "Régression Locale Linéaire")
+lines(df$txabs, pred_lin, col = "blue")
+
+```
+
+```{r}
+# Régression locale quadratique
+modele_loess_quad <- loess(txabs ~ Salairemoy  + TxPauv + NonDiplome + txcho, #+ V1 + V2 + V3,# 
+                           data = df_stand, degree = 2, span = 0.75)
+
+# Prédiction avec le modèle quadratique local
+pred_quad <- predict(modele_loess_quad)
+
+# Afficher un résumé du modèle
+summary(modele_loess_quad)
+
+# Visualiser la régression locale quadratique
+plot(df$txabs, pred_quad, xlab = "Observations", ylab = "txabs prédit", main = "Régression Locale Quadratique")
+lines(df$txabs, pred_quad, col = "red")
+```
+
+```{r}
+
+plot(df$txabs, pred_lin, type = "l", col = "blue", xlab = "Observations", ylab = "txabs prédit", main = "Comparaison des régressions LOESS ")
+lines(df$txabs, pred_quad, col = "red")
+legend("topright", legend = c("Linéaire", "Quadratique"), col = c("blue", "red"), lty = 1)
+
+```
+
+## 9.4. Régression par spline adaptive
+
+## 9.5. General Additive Models
+
+# 10. Clusters
+```{r}
+draw_plot_tsne <- function(df_cluster){
+  tsne_out <- Rtsne(df_stand)
+  if (df_cluster == "none"){#
+    tsne_plot <- data.frame(x = tsne_out$Y[,1], 
+                            y = tsne_out$Y[,2])
+  }
+  else{
+    tsne_plot <- data.frame(x = tsne_out$Y[,1], 
+                            y = tsne_out$Y[,2],
+                            col = as.character(df_cluster))
+  }
+  plot(tsne_plot)
+}
+draw_plot_tsne("none")
+```
+
+
+## 10.1. KMeans
+
+```{r}
+km_silhouette_score_mean <- function(k){
+  km <- kmeans(df_stand, centers = k, nstart=25)
+  ss <- silhouette(km$cluster, stats::dist(df_stand))
+  mean(ss[, 3])
+}
+
+k <- 2:10
+avg_sil <- base::sapply(k,km_silhouette_score_mean)
+plot(k, type='b', avg_sil,
+     xlab='Nombre de clusters', 
+     ylab='Score Silhouette Moyen', 
+     frame=FALSE)
+```
+```{r}
+fviz_nbclust(df_stand, kmeans, method='silhouette')
+```
+
+```{r}
+km_silhouette_score <- function(k){
+  km <- kmeans(df_stand, centers = k, nstart=25)
+  ss <- silhouette(km$cluster, stats::dist(df_stand))
+  ss
+}
+
+for (k in 2:10){
+  sil <- km_silhouette_score(k)
+  plot(fviz_silhouette(sil))
+}
+
+```
+```{r}
+km <- kmeans(df_stand, centers = 4, nstart=25)
+clusters = as.character(km$cluster)
+ggplot(tsne_plot, aes(x = , y = y, color = clusters)) +
+  geom_point(size = 3) +  # Afficher les points
+  geom_text(aes(label = df$Code), vjust = -1, size = 3) +  # Ajouter les labels
+  labs(title = "t-SNE avec labels")
+```
+
+## 10.2. CAH
+
+```{r}
+df_stand.dist <- stats::dist(df_stand_tmp)
+cah.ward <- hclust(df_stand.dist,method="ward.D2")
+for (k in 2:10){
+  clusters <- cutree(cah.ward, k = k)
+  sil <- silhouette(clusters, df_stand.dist)
+  plot(fviz_silhouette(sil))
+}
+```
+
+```{r fwidth=6, fig.height=12}
+plot(cah.ward)
+rect.hclust(cah.ward,k=4)
+```
+
+## 10.3 DBScan
+
+```{r}
+#sub_df_scaled <- df_scaled[,-c(1,7)]
+nearest_neighbors <- get.knn(df_stand, k = 2)
+nearest_neighbor_distances <- nearest_neighbors$nn.dist[, 2]
+nearest_neighbor_distances <- sort(nearest_neighbor_distances)
+nnd_df <- data.frame(nearest_neighbor_distances=nearest_neighbor_distances)
+ggplot(nnd_df, aes(x = 1:nrow(nnd_df), y = nearest_neighbor_distances)) +
+  geom_line() +              # Trace la ligne             # Affiche les points
+  labs(x = "Index", y = "Distance au voisin le plus proche") +
+  ggtitle("Distance au voisin le plus proche pour chaque observation") +
+  theme_minimal()
+```
+
+
+```{r}
+dbs <- dbscan(df_stand,eps=1)
+clusters <- as.character(dbs$cluster)
+sil <- silhouette(dbs$cluster, df_stand.dist)
+plot(fviz_silhouette(sil))
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y, color=clusters))+
+  labs(title = "DBSCAN Clustering with Epsilon = 1",
+       x = "X", y = "Y")
+```
+
+```{r}
+dbs <- dbscan(df_stand,eps=1.5)
+clusters <- as.character(dbs$cluster)
+sil <- silhouette(dbs$cluster, df_stand.dist)
+plot(fviz_silhouette(sil))
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y, color=clusters))+
+  labs(title = "DBSCAN Clustering with Epsilon = 1.5",
+       x = "X", y = "Y")
+```
+
+```{r}
+dbs <- dbscan(df_stand,eps=2)
+clusters <- as.character(dbs$cluster)
+sil <- silhouette(dbs$cluster, df_stand.dist)
+plot(fviz_silhouette(sil))
+ggplot(tsne_plot) + 
+  geom_point(aes(x=x,y=y, color=clusters))+
+  labs(title = "DBSCAN Clustering with Epsilon = 2",
+       x = "X", y = "Y")
+```
+
