@@ -116,6 +116,7 @@ D'après cette courbe, on en déduit que le meilleur nombre de partitions est 4 
 On peut visualiser les coefficients silhouette des individus sur le graphe suivant:
 ```{r}
 km_silhouette_score <- function(k){
+  set.seed(123)
   km <- kmeans(clusters_in, centers = k, nstart=25)
   ss <- silhouette(km$cluster, stats::dist(clusters_in))
   ss
@@ -180,13 +181,15 @@ for (eps in seq(1,2,by=0.1)){
   
 }
 ```
-Lorsqu'on analyse les différents graphiques, on obtient des partitionnements avec des coefficients silhouette plus élevés. Nous constatons deux configirations :
+Lorsqu'on analyse les différents graphiques, on obtient des partitionnements avec des coefficients silhouette plus élevés. 
+Nous constatons deux configirations :
+
 - une majorité à deux partitions avec des effectifs complètement déséquilibrés dont l'une comporte un nombre important d'individus mal positionnés. Leurs coefficients Silhouettes sont élevés, gonflés par la seconde partition (la plus grande) dont les points sont bien placés.
 - un partitionnement en trois groupes pour un coefficient Silhouette moyen de 0,26.
 
 # 5. Sélection du modèle
 
-Malgré  valeurs supérieures de coefficients Silhouette moyens, nous écartons les partitionnements en 2 groupes de DBScan. En effet ces valeurs sont le résultat d'un groupe sur-représenté de points biens placés.
+Malgré des valeurs supérieures des coefficients Silhouette moyens, nous écartons les partitionnements en 2 groupes de DBScan. En effet ces valeurs sont le résultat d'un groupe sur-représenté de points biens placés.
 
 Le modèle qui obtient le meilleur score dans ce contexte est le Kmeans à 4 partitions.
 
@@ -252,7 +255,17 @@ draw_plot_tsne(km$cluster,2,3)
 draw_plot_tsne(km$cluster,1,3)
 draw_plot_tsne_3D(km$cluster)
 ```
+Les coupes planes obtenues ne sont pas satisfaisante car elles ne permettent pas de distinguer nettement si des individus classés
+dans un cluster donné se retrouvent isolés au milieu d'un autre cluster ou si ceux-ci sont bien séparés.
+On a donc recours à une vue 3D qui permet alors de le vérifier.
+
+
 ##6.2 Distribution des variables dans les partitions
+
+
+On regarde les distributions des variables d'origine afin de déterminer si certaines peuvent expliquer le taux d'abstention
+en fonction de leur cluster d'appartenance.
+
 ```{r}
 draw_boxplot_per_class <- function(df,cluster_points,varname){
   agg_df <- df
