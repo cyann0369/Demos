@@ -1,0 +1,322 @@
+# Projet 2: Dèmos, Identification des les facteurs socio-économiques influençant l'abstention électorale en France à l'aide de R.
+
+######################################################### 
+
+# 1. Chargement des librairies
+```{r}
+
+#devtools::install_github("r-lib/conflicted", force = TRUE)
+library(conflicted)
+library(readxl)
+library(tidyverse)
+library(dplyr)
+library(lattice)
+library(psych)
+library(ggplot2)
+library(gridExtra)
+library(reshape2)
+library(ggrain)
+library(corrr)
+library(ggcorrplot)
+library(corrplot)
+library(compositions)
+library(FactoMineR)
+library(factoextra)
+library(broom)
+library(pls)
+library(splines)
+library(caret)
+library(stats)
+library(cluster)
+library(dbscan)
+library(Rtsne)
+library(ggrepel)
+library(dbscan)
+library(FNN)
+library(plotly)
+
+```
+
+# 2. Chargement des données
+
+```{r}
+#detach(df)
+df <- read_excel("data/data_abs.xlsx")
+df <- df[-1]
+#Modification de la variable Code
+df$Code <- gsub("\\.0","",df$Code)
+df$Code <- gsub("^([0-9])$","0\\1",df$Code)
+
+df <- df %>%
+     remove_rownames() %>%
+     column_to_rownames('Department')
+
+```
+
+# 3. Transformation des données
+## 3.1. Données compositionnelles
+```{r}
+# Séparation des variables explicatives (en compositionnelles et non compositionnelles)
+
+df_comp <- df[, c("Ouvrier", "Employe", "PI", "Cadres","Artisant", "Agri")]
+
+df_noncomp <- df[, c("HLM", "Salairemoy", "TxPauv", "NonDiplome","txcho")]
+
+# Transformation Log-Ratio Isométrique (ILR) des données compositionnelles
+comp_ilr <- ilr(df_comp)
+df_comp_ilr <- as.data.frame.acomp(comp_ilr)
+
+```
+## 3.2. Données non compositionnelles
+```{r}
+# Standardisation des variables non compositionnelles
+
+df_noncomp_stand <- as.data.frame(scale(df_noncomp))
+
+df_stand <- cbind(df_noncomp_stand, df_comp_ilr )
+clusters_in <- df_stand
+```
+
+
+# 4. Partitionnement des individus.
+## 4.1. Objectif
+Nous souhaitons générer des partitions afin de vérifier si l'on peut en déduire
+des typologies d'individus à mettre en relation avec les taux d'abstention.
+
+Nous allons pour cela évaluer trois algorithmes capables d'effectuer cette tâche:
+- KMeans
+- classification ascendante hiérarchique
+- DBScan
+
+## 4.2. Métrique utilisée
+Dans chaque cas, la métrique que nous utiliserons pour déterminer le nombre optimal de
+partitions est le coefficient Silhouette moyen. Il donne la qualité d'une partition.
+
+Pour chaque point, on mesure la différence entre :
+- la cohésion : distance moyenne avec les autres points du même groupe
+- la séparation : distance moyenne avec les points des groupes voisins
+
+Lorsque le résultat est négatif, le point est en moyenne plus proche des groupes voisins et est 
+donc mal classé. A l'inverse, lorsqu'il est positif, le point est en moyenne plus proche de son groupe et il est bien classé.
+
+le coefficient Silhouette moyen est la moyenne  des coefficients silhouette 
+de l'ensemble des points. Sa valeur est comprise entre -1 et 1. Plus le score est élevé, meilleur est le partionnement.
+
+## 4.3. &Eacute;valuation du partitionnement par KMeans
+### 4.3.1. Détermination du nombre de clusters optimal
+On trace la courbe donnant le Coefficient Silhouette moyen en fonction du nombre
+de partitions, et on en cherche la valeur maximale.
+```{r}
+fviz_nbclust(clusters_in, kmeans, method='silhouette')+
+  labs(title="Nombre de partitions optimal pour KMeans",
+       x="Nombre de partitions",
+       y="Coef. Silhoutette moyen")
+```
+D'après cette courbe, on en déduit que le meilleur nombre de partitions est 4 pour ce modèle.
+On peut visualiser les coefficients silhouette des individus sur le graphe suivant:
+```{r}
+km_silhouette_score <- function(k){
+  set.seed(123)
+  km <- kmeans(clusters_in, centers = k, nstart=25)
+  ss <- silhouette(km$cluster, stats::dist(clusters_in))
+  ss
+}
+
+sil <- km_silhouette_score(4)
+fviz_silhouette(sil)
+```
+Le coefficient Silhoutte moyen vaut 0.28, pour un partitionnement en 4 groupes.
+
+## 4.4. &Eacute;valuation du partitionnement par Classification Ascendente Hiérarchique
+La démarche est la même pour ce modèle.
+```{r}
+#fviz_nbclust(clusters_in, FUN=hcut, method='silhouette')+
+fviz_nbclust(clusters_in, FUN = hcut, method = "silhouette", hc_method = "ward.D2") +
+    labs(title="Nombre de partitions optimal pour CAH",
+       x="Nombre de partitions",
+       y="Coef. Silhoutette moyen")
+```
+```{r}
+distances <- stats::dist(clusters_in)
+cah.ward <- hclust(distances,method="ward.D2")
+clusters_out <- cutree(cah.ward, k = 4)
+sil <- silhouette(clusters_out, distances)
+plot(fviz_silhouette(sil))
+```
+Le meilleur coefficient Silhoutte moyen vaut 0.24, pour un partitionnement en 4 groupes.
+
+## 4.5. &Eacute;valuation du partitionnement par DBScan
+DBScan ne prend pas en paramètre le nombre de partitions, mais une distance $\epsilon$ 
+et un nombre minimum de points.
+
+Il faut dans un premier temps déterminer un intervalle dans lequel trouver l'$\epsilon$ 
+optimal. Pour cela, on ordonne toutes les distances entre chaque point et son plus proche
+voisin. On obtient la courbe suivante:
+```{r}
+nearest_neighbors <- get.knn(clusters_in, k = 2)
+nearest_neighbor_distances <- nearest_neighbors$nn.dist[, 2]
+nearest_neighbor_distances <- sort(nearest_neighbor_distances)
+nnd_df <- data.frame(nearest_neighbor_distances=nearest_neighbor_distances)
+ggplot(nnd_df, aes(x = 1:nrow(nnd_df), y = nearest_neighbor_distances)) +
+  geom_line() +
+  geom_abline(slope=0,intercept=2, color = "red", linetype = "dashed")+
+  geom_abline(slope=0,intercept=1, color = "red", linetype = "dashed")+
+  labs(x = "Index", 
+       y = "Distance au voisin le plus proche",
+       title= "Distance au voisin le plus proche pour chaque observation")
+```
+$\epsilon$ doit se trouver dans le "coude" ainsi formé, soit ici à une valeur comprise entre 1 et 2.
+On calcule les coefficients Silhouette moyens des partitions pour plusieurs valeurs comprises entre ces bornes.
+
+```{r}
+for (eps in seq(1,2,by=0.1)){
+  dbs <- dbscan(clusters_in,eps=eps)
+  sil <- silhouette(dbs$cluster, distances)
+  plot(fviz_silhouette(sil)+
+  annotate("text", 
+           x = 90, 
+           y = 1, 
+           label = bquote(paste(epsilon, "=",.(eps))) 
+          ))
+  
+}
+```
+Lorsqu'on analyse les différents graphiques, on obtient des partitionnements avec des coefficients silhouette plus élevés. 
+Nous constatons deux configirations :
+
+- une majorité à deux partitions avec des effectifs complètement déséquilibrés dont l'une comporte un nombre important d'individus mal positionnés. Leurs coefficients Silhouettes sont élevés, gonflés par la seconde partition (la plus grande) dont les points sont bien placés.
+- un partitionnement en trois groupes pour un coefficient Silhouette moyen de 0,26.
+
+# 5. Sélection du modèle
+
+Malgré des valeurs supérieures des coefficients Silhouette moyens, nous écartons les partitionnements en 2 groupes de DBScan. En effet ces valeurs sont le résultat d'un groupe sur-représenté de points biens placés.
+
+Le modèle qui obtient le meilleur score dans ce contexte est le Kmeans à 4 partitions.
+
+# 6. Analyse des partitions
+
+## 6.1 Visualisation des partitions
+```{r}
+draw_plot_tsne <- function(cluster_points,x=1,y=2){
+  set.seed(123)
+  clusters <- as.character(cluster_points,perplexity=30)
+  tsne_out <- Rtsne(df_stand,dims=3)
+  tsne_plot <- data.frame(x = tsne_out$Y[,x], 
+                          y = tsne_out$Y[,y]
+                         )
+  ggplot(tsne_plot, aes(x = x , y = y, color = clusters)) +
+  geom_point(size = 3) +  # Afficher les points
+  geom_text_repel(aes(label = df$Code),  # Éviter le chevauchement des labels
+                  box.padding = 0.35,   # Espace autour du label
+                  point.padding = 0.5,  # Espace autour du point
+                  max.overlaps = Inf) +
+  labs(title = "t-SNE avec labels")
+}
+
+
+draw_plot_tsne_3D <- function(cluster_points){
+  set.seed(123)
+  clusters <- as.character(cluster_points)
+  tsne_out <- Rtsne(df_stand,dims=3,perplexity=30)
+  tsne_3d <- tsne_out$Y
+  tsne_3d <- data.frame(
+    X = tsne_3d[, 1],
+    Y = tsne_3d[, 2],
+    Z = tsne_3d[, 3],
+    clusters = clusters,
+    labels = paste("Dept.",df$Code))
+  
+  p <- plot_ly(tsne_3d, 
+               x = ~X, 
+               y = ~Y, 
+               z = ~Z, 
+               color = ~clusters, 
+               text = ~labels, 
+               hoverinfo = "text") %>%
+    add_markers() %>%
+    plotly::layout(scene = list(xaxis = list(title = 't-SNE 1'),
+                                yaxis = list(title = 't-SNE 2'),
+                                zaxis = list(title = 't-SNE 3')),
+                   title = "Projection t-SNE  en 3D",
+                   annotations = list(
+                         x = 1.11,
+                         y = 1.03,
+                         text = 'Clusters',
+                         showarrow=FALSE)
+                   )
+  
+  htmlwidgets::saveWidget(as_widget(p), "tsne_3d_plot.html")
+  p
+}
+
+km <- kmeans(clusters_in, centers = 4, nstart=25)
+draw_plot_tsne(km$cluster)
+draw_plot_tsne(km$cluster,2,3)
+draw_plot_tsne(km$cluster,1,3)
+draw_plot_tsne_3D(km$cluster)
+```
+Les coupes planes obtenues ne sont pas satisfaisante car elles ne permettent pas de distinguer nettement si des individus classés
+dans un cluster donné se retrouvent isolés au milieu d'un autre cluster ou si ceux-ci sont bien séparés.
+On a donc recours à une vue 3D qui permet alors de le vérifier.
+
+
+##6.2 Distribution des variables dans les partitions
+
+
+On regarde les distributions des variables d'origine afin de déterminer si certaines peuvent expliquer le taux d'abstention
+en fonction de leur cluster d'appartenance.
+
+```{r}
+draw_boxplot_per_class <- function(df,cluster_points,varname){
+  agg_df <- df
+  agg_df$cluster <- cluster_points
+  agg_df$outlier <- ave(agg_df[,varname], agg_df$cluster, FUN = is_outlier)
+  x_labels <- sort(unique(agg_df$cluster))
+  g <- ggplot(agg_df, aes(x=cluster, y=!!sym(varname),group=cluster)) +
+    geom_boxplot(fill = "lightblue", outlier.colour = "red")+
+    geom_point(aes(x = cluster, y = !!sym(varname)),col = "red", alpha = 0.2)+
+    geom_text(data = agg_df[agg_df$outlier == TRUE,], aes(label = Code), 
+            hjust = -0.3, vjust = 0, color = "red")+
+    scale_x_discrete("Cluster",limits = factor(c(x_labels)))+
+    ggtitle(paste("Boxplot par cluster pour la variable",varname))
+    plot(g)
+}
+for (column in colnames(df[-1])){
+    draw_boxplot_per_class(df,km$cluster,column)
+}
+
+```
+
+```{r}
+get_clusters_samples <- function()
+{
+  set.seed(124)
+  res = data.frame(cluster=c())
+  clusters_df <- data.frame(cluster=km$cluster) 
+  for (i in unique(clusters_df$cluster)){
+    tmp <- clusters_df %>%
+    dplyr::filter(cluster==i) %>% 
+    sample_n(4)
+    res <- rbind(res,tmp)
+  }
+  names <- rownames(res)
+  res <- res$cluster
+  names(res) <- names
+  res
+}
+
+samples <- get_clusters_samples()
+data.frame(cluster=samples)
+
+for (column in colnames(df[-1])){
+  draw_boxplot_per_class(df[names(samples),],samples,column)
+}
+
+
+
+```
+
+```
+
+
+
